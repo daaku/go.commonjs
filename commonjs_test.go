@@ -3,9 +3,19 @@ package commonjs_test
 import (
 	"bytes"
 	"github.com/daaku/go.commonjs"
+	"go/build"
 	"math"
+	"path/filepath"
 	"testing"
 )
+
+func getTestFilePath() string {
+	dir, err := build.ImportDir("github.com/daaku/go.commonjs", build.FindOnly)
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(dir.SrcRoot, "commonjs_test.go")
+}
 
 func TestCustomProvider(t *testing.T) {
 	t.Parallel()
@@ -81,7 +91,7 @@ func TestJSONModuleError(t *testing.T) {
 	}
 }
 
-func TestURLBacked(t *testing.T) {
+func TestURLBackedModule(t *testing.T) {
 	t.Parallel()
 	const name = "jquery"
 	m, err := commonjs.NewURLModule(
@@ -98,9 +108,31 @@ func TestURLBacked(t *testing.T) {
 	}
 }
 
-func TestURLBackedInvalid(t *testing.T) {
+func TestURLBackedModuleInvalid(t *testing.T) {
 	t.Parallel()
 	if _, err := commonjs.NewURLModule("foo", "foo"); err == nil {
+		t.Fatal("was expecting an error")
+	}
+}
+
+func TestFileBackedModule(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	m, err := commonjs.NewFileModule(name, getTestFilePath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Name != name {
+		t.Fatalf("unexpected name %s", m.Name)
+	}
+	if !bytes.Contains(m.Content, []byte("meta meta meta")) {
+		t.Fatalf("did not find expected content")
+	}
+}
+
+func TestFileBackedModuleInvalid(t *testing.T) {
+	t.Parallel()
+	if _, err := commonjs.NewFileModule("foo", "foo"); err == nil {
 		t.Fatal("was expecting an error")
 	}
 }

@@ -61,6 +61,18 @@ func NewURLModule(name string, url string) (*Module, error) {
 	}, nil
 }
 
+// Define a module where the content is pulled from a file.
+func NewFileModule(name string, filename string) (*Module, error) {
+	buf, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &Module{
+		Name:    name,
+		Content: buf,
+	}, nil
+}
+
 // Add a Module to the provider.
 func (p *CustomProvider) Add(m *Module) error {
 	if p.modules == nil {
