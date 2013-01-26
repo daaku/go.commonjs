@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"time"
 )
 
@@ -39,6 +41,23 @@ func NewJSONModule(name string, v interface{}) (*Module, error) {
 	return &Module{
 		Name:    name,
 		Content: buf.Bytes(),
+	}, nil
+}
+
+// Define a module where the content is pulled from a URL.
+func NewURLModule(name string, url string) (*Module, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &Module{
+		Name:    name,
+		Content: buf,
 	}, nil
 }
 
