@@ -8,16 +8,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"time"
 )
 
-var errModuleMissingName = errors.New("module does not have a name")
+var (
+	errModuleMissingName = errors.New("module does not have a name")
+	reFunCall            = regexp.MustCompile(`require\(['"](.+?)['"]\)`)
+)
 
 // A Module is a name, a function returning
 type Module struct {
 	Name         string
 	Content      []byte
 	LastModified *time.Time
+	Require      []string // required module names
 }
 
 // A Provider provides Modules.
@@ -71,6 +76,16 @@ func NewFileModule(name string, filename string) (*Module, error) {
 		Name:    name,
 		Content: buf,
 	}, nil
+}
+
+// Find all required modules and populate Require.
+func (m *Module) ParseRequire() error {
+	calls := reFunCall.FindAllSubmatch(m.Content, -1)
+	m.Require = make([]string, len(calls))
+	for ix, dep := range calls {
+		m.Require[ix] = string(dep[1])
+	}
+	return nil
 }
 
 // Add a Module to the provider.

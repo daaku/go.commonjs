@@ -136,3 +136,38 @@ func TestFileBackedModuleInvalid(t *testing.T) {
 		t.Fatal("was expecting an error")
 	}
 }
+
+func TestModuleDeps(t *testing.T) {
+	m := &commonjs.Module{
+		Name:    "bar",
+		Content: []byte(`require('foo')`),
+	}
+	if err := m.ParseRequire(); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Require) != 1 {
+		t.Fatalf("expecting 1 require, got %s", m.Require)
+	}
+	if m.Require[0] != "foo" {
+		t.Fatalf("expecting 1 require foo, got %s", m.Require)
+	}
+}
+
+func TestModuleDepsMultiple(t *testing.T) {
+	m := &commonjs.Module{
+		Name:    "bar",
+		Content: []byte(`require('foo') require("baz")`),
+	}
+	if err := m.ParseRequire(); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Require) != 2 {
+		t.Fatalf("expecting 2 requires, got %s", m.Require)
+	}
+	if m.Require[0] != "foo" {
+		t.Fatalf("expecting 2 requires foo, got %s", m.Require)
+	}
+	if m.Require[1] != "baz" {
+		t.Fatalf("expecting 2 requires baz, got %s", m.Require)
+	}
+}
