@@ -58,6 +58,30 @@ func TestCustomProviderModuleNotFound(t *testing.T) {
 	}
 }
 
+func TestLiteralModule(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	const content = "require('baz')"
+	m := commonjs.NewModule("foo", []byte(content))
+	if m.Name() != name {
+		t.Fatal("did not find expected name")
+	}
+	c, err := m.Content()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(c) != content {
+		t.Fatalf(`did not find expected content, found "%s"`, c)
+	}
+	r, err := m.Require()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) != 1 || r[0] != "baz" {
+		t.Fatal("did not find expected require")
+	}
+}
+
 func TestJSONModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
@@ -71,6 +95,10 @@ func TestJSONModule(t *testing.T) {
 	}
 	if string(content) != "exports.module={\"answer\":42}\n" {
 		t.Fatalf(`did not find expected content, found "%s"`, content)
+	}
+	r, err := m.Require()
+	if r != nil || err != nil {
+		t.Fatal("did not find expected require")
 	}
 }
 
@@ -87,7 +115,8 @@ func TestURLBackedModule(t *testing.T) {
 	const name = "jquery"
 	m := commonjs.NewURLModule(
 		name,
-		"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js")
+		"https://gist.github.com/raw/20708056086e28e3ef7d/"+
+			"ceeb3616d8efd041dcf5205904963986e0dffe79/gistfile1.js")
 	if m.Name() != name {
 		t.Fatalf("unexpected name %s", m.Name())
 	}
@@ -95,8 +124,15 @@ func TestURLBackedModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(content, []byte("jQuery JavaScript Library v1.9.0")) {
+	if !bytes.Contains(content, []byte("require")) {
 		t.Fatalf("did not find expected content")
+	}
+	r, err := m.Require()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) != 1 || r[0] != "foo" {
+		t.Fatal("did not find expected require")
 	}
 }
 
