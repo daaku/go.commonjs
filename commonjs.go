@@ -41,7 +41,7 @@ type CustomProvider struct {
 // configuration data for example.
 func NewJSONModule(name string, v interface{}) (*Module, error) {
 	buf := new(bytes.Buffer)
-	buf.WriteString("return ")
+	buf.WriteString("exports.module=")
 	if err := json.NewEncoder(buf).Encode(v); err != nil {
 		return nil, err
 	}

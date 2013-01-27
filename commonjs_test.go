@@ -69,7 +69,7 @@ func TestJSONModule(t *testing.T) {
 	if m.Name != name {
 		t.Fatal("did not find expected name")
 	}
-	if string(m.Content) != "return {\"answer\":42}\n" {
+	if string(m.Content) != "exports.module={\"answer\":42}\n" {
 		t.Fatalf(`did not find expected content, found "%s"`, m.Content)
 	}
 }
