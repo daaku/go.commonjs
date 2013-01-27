@@ -206,16 +206,23 @@ func TestModuleDepsMultiple(t *testing.T) {
 	}
 }
 
-func TestModulesFromDir(t *testing.T) {
+func TestDirProvider(t *testing.T) {
 	t.Parallel()
-	l, err := commonjs.NewModulesFromDir("_test")
+	const name = "b/baz"
+	p := commonjs.NewDirProvider("_test")
+	m, err := p.Module(name)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(l) != 3 {
-		t.Fatal("was expecting 3 modules")
+	if m.Name() != name {
+		t.Fatal("did not find expected name")
 	}
-	if l[0].Name() != "a/foo" || l[1].Name() != "b/baz" || l[2].Name() != "bar" {
-		t.Fatal("did not find expected modules")
+}
+
+func TestDirProviderNotExist(t *testing.T) {
+	t.Parallel()
+	p := commonjs.NewDirProvider("_test")
+	if _, err := p.Module("xyz"); err == nil {
+		t.Fatal("did not find expected error")
 	}
 }

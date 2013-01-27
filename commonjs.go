@@ -66,6 +66,12 @@ type CustomProvider struct {
 	modules map[string]Module
 }
 
+// Provides modules from a directory.
+type dirProvider struct {
+	path  string
+	cache map[string]Module
+}
+
 // Define a module with the given content.
 func NewModule(name string, content []byte) Module {
 	return &literalModule{
@@ -190,25 +196,20 @@ func (m *fileModule) Require() ([]string, error) {
 	return m.require, nil
 }
 
-// Parse modules from a directory.
-func NewModulesFromDir(dirname string) (l []Module, err error) {
-	err = filepath.Walk(
-		dirname,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() || filepath.Ext(path) != ".js" {
-				return nil
-			}
-			m := NewFileModule(path[len(dirname)+1:len(path)-3], path)
-			l = append(l, m)
-			return nil
-		})
-	if err != nil {
-		return nil, err
+// Provide modules from a directory.
+func NewDirProvider(dirname string) Provider {
+	return &dirProvider{path: dirname}
+}
+
+func (d *dirProvider) Module(name string) (Module, error) {
+	if m, ok := d.cache[name]; ok {
+		return m, nil
 	}
-	return l, nil
+	filename := filepath.Join(d.path, name+".js")
+	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
+		return nil, fmt.Errorf("module %s not found", name)
+	}
+	return NewFileModule(name, filename), nil
 }
 
 // Find all required modules.
