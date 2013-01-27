@@ -3,19 +3,10 @@ package commonjs_test
 import (
 	"bytes"
 	"github.com/daaku/go.commonjs"
-	"go/build"
+	"github.com/daaku/go.subset"
 	"math"
-	"path/filepath"
 	"testing"
 )
-
-func getTestFilePath() string {
-	dir, err := build.ImportDir("github.com/daaku/go.commonjs", build.FindOnly)
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(dir.SrcRoot, "commonjs_test.go")
-}
 
 func TestCustomProvider(t *testing.T) {
 	t.Parallel()
@@ -118,7 +109,7 @@ func TestURLBackedModuleInvalid(t *testing.T) {
 func TestFileBackedModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	m, err := commonjs.NewFileModule(name, getTestFilePath())
+	m, err := commonjs.NewFileModule(name, "commonjs_test.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,6 +129,7 @@ func TestFileBackedModuleInvalid(t *testing.T) {
 }
 
 func TestModuleDeps(t *testing.T) {
+	t.Parallel()
 	m := &commonjs.Module{
 		Name:    "bar",
 		Content: []byte(`require('foo')`),
@@ -154,6 +146,7 @@ func TestModuleDeps(t *testing.T) {
 }
 
 func TestModuleDepsMultiple(t *testing.T) {
+	t.Parallel()
 	m := &commonjs.Module{
 		Name:    "bar",
 		Content: []byte(`require('foo') require("baz")`),
@@ -170,4 +163,20 @@ func TestModuleDepsMultiple(t *testing.T) {
 	if m.Require[1] != "baz" {
 		t.Fatalf("expecting 2 requires baz, got %s", m.Require)
 	}
+}
+
+func TestModulesFromDir(t *testing.T) {
+	t.Parallel()
+	l, err := commonjs.NewModulesFromDir("_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	subset.Assert(
+		t,
+		[]*commonjs.Module{
+			&commonjs.Module{Name: "a/foo"},
+			&commonjs.Module{Name: "b/baz"},
+			&commonjs.Module{Name: "bar"},
+		},
+		l)
 }

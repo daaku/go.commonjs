@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"time"
 )
@@ -76,6 +78,30 @@ func NewFileModule(name string, filename string) (*Module, error) {
 		Name:    name,
 		Content: buf,
 	}, nil
+}
+
+// Parse modules from a directory.
+func NewModulesFromDir(dirname string) (l []*Module, err error) {
+	err = filepath.Walk(
+		dirname,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() || filepath.Ext(path) != ".js" {
+				return nil
+			}
+			m, err := NewFileModule(path[len(dirname)+1:len(path)-3], path)
+			if err != nil {
+				return err
+			}
+			l = append(l, m)
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	return l, nil
 }
 
 // Find all required modules and populate Require.
