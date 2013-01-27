@@ -209,7 +209,12 @@ func (d *dirProvider) Module(name string) (Module, error) {
 	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
 		return nil, fmt.Errorf("module %s not found", name)
 	}
-	return NewFileModule(name, filename), nil
+	if d.cache == nil {
+		d.cache = make(map[string]Module)
+	}
+	m := NewFileModule(name, filename)
+	d.cache[name] = m
+	return m, nil
 }
 
 // Find all required modules.
