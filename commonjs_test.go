@@ -3,7 +3,6 @@ package commonjs_test
 import (
 	"bytes"
 	"github.com/daaku/go.commonjs"
-	"github.com/daaku/go.subset"
 	"math"
 	"testing"
 )
@@ -12,7 +11,7 @@ func TestCustomProvider(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
 	c := &commonjs.CustomProvider{}
-	m := &commonjs.Module{Name: name}
+	m := commonjs.NewModule(name, nil)
 	if err := c.Add(m); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +31,7 @@ func TestCustomProviderRepeatModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
 	c := &commonjs.CustomProvider{}
-	m := &commonjs.Module{Name: name}
+	m := commonjs.NewModule(name, nil)
 	if err := c.Add(m); err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +43,7 @@ func TestCustomProviderRepeatModule(t *testing.T) {
 func TestCustomProviderMissingName(t *testing.T) {
 	t.Parallel()
 	c := &commonjs.CustomProvider{}
-	m := &commonjs.Module{}
+	m := commonjs.NewModule("", nil)
 	if err := c.Add(m); err == nil {
 		t.Fatal("was expecting a error")
 	}
@@ -62,22 +61,23 @@ func TestCustomProviderModuleNotFound(t *testing.T) {
 func TestJSONModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	m, err := commonjs.NewJSONModule("foo", map[string]int{"answer": 42})
+	m := commonjs.NewJSONModule("foo", map[string]int{"answer": 42})
+	if m.Name() != name {
+		t.Fatal("did not find expected name")
+	}
+	content, err := m.Content()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Name != name {
-		t.Fatal("did not find expected name")
-	}
-	if string(m.Content) != "exports.module={\"answer\":42}\n" {
-		t.Fatalf(`did not find expected content, found "%s"`, m.Content)
+	if string(content) != "exports.module={\"answer\":42}\n" {
+		t.Fatalf(`did not find expected content, found "%s"`, content)
 	}
 }
 
 func TestJSONModuleError(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	if _, err := commonjs.NewJSONModule("foo", math.NaN()); err == nil {
+	if _, err := commonjs.NewJSONModule("foo", math.NaN()).Content(); err == nil {
 		t.Fatal("was expecting an error")
 	}
 }
@@ -85,23 +85,24 @@ func TestJSONModuleError(t *testing.T) {
 func TestURLBackedModule(t *testing.T) {
 	t.Parallel()
 	const name = "jquery"
-	m, err := commonjs.NewURLModule(
+	m := commonjs.NewURLModule(
 		name,
 		"http://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.js")
+	if m.Name() != name {
+		t.Fatalf("unexpected name %s", m.Name())
+	}
+	content, err := m.Content()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Name != name {
-		t.Fatalf("unexpected name %s", m.Name)
-	}
-	if !bytes.Contains(m.Content, []byte("jQuery JavaScript Library v1.9.0")) {
+	if !bytes.Contains(content, []byte("jQuery JavaScript Library v1.9.0")) {
 		t.Fatalf("did not find expected content")
 	}
 }
 
 func TestURLBackedModuleInvalid(t *testing.T) {
 	t.Parallel()
-	if _, err := commonjs.NewURLModule("foo", "foo"); err == nil {
+	if _, err := commonjs.NewURLModule("foo", "foo").Content(); err == nil {
 		t.Fatal("was expecting an error")
 	}
 }
@@ -109,59 +110,56 @@ func TestURLBackedModuleInvalid(t *testing.T) {
 func TestFileBackedModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	m, err := commonjs.NewFileModule(name, "commonjs_test.go")
+	m := commonjs.NewFileModule(name, "commonjs_test.go")
+	if m.Name() != name {
+		t.Fatalf("unexpected name %s", m.Name())
+	}
+	content, err := m.Content()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m.Name != name {
-		t.Fatalf("unexpected name %s", m.Name)
-	}
-	if !bytes.Contains(m.Content, []byte("meta meta meta")) {
+	if !bytes.Contains(content, []byte("meta meta meta")) {
 		t.Fatalf("did not find expected content")
 	}
 }
 
 func TestFileBackedModuleInvalid(t *testing.T) {
 	t.Parallel()
-	if _, err := commonjs.NewFileModule("foo", "foo"); err == nil {
+	if _, err := commonjs.NewFileModule("foo", "foo").Content(); err == nil {
 		t.Fatal("was expecting an error")
 	}
 }
 
 func TestModuleDeps(t *testing.T) {
 	t.Parallel()
-	m := &commonjs.Module{
-		Name:    "bar",
-		Content: []byte(`require('foo')`),
-	}
-	if err := m.ParseRequire(); err != nil {
+	m := commonjs.NewModule("bar", []byte(`require('foo')`))
+	require, err := m.Require()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Require) != 1 {
-		t.Fatalf("expecting 1 require, got %s", m.Require)
+	if len(require) != 1 {
+		t.Fatalf("expecting 1 require, got %s", require)
 	}
-	if m.Require[0] != "foo" {
-		t.Fatalf("expecting 1 require foo, got %s", m.Require)
+	if require[0] != "foo" {
+		t.Fatalf("expecting 1 require foo, got %s", require)
 	}
 }
 
 func TestModuleDepsMultiple(t *testing.T) {
 	t.Parallel()
-	m := &commonjs.Module{
-		Name:    "bar",
-		Content: []byte(`require('foo') require("baz")`),
-	}
-	if err := m.ParseRequire(); err != nil {
+	m := commonjs.NewModule("bar", []byte(`require('foo') require("baz")`))
+	require, err := m.Require()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Require) != 2 {
-		t.Fatalf("expecting 2 requires, got %s", m.Require)
+	if len(require) != 2 {
+		t.Fatalf("expecting 2 requires, got %s", require)
 	}
-	if m.Require[0] != "foo" {
-		t.Fatalf("expecting 2 requires foo, got %s", m.Require)
+	if require[0] != "foo" {
+		t.Fatalf("expecting 2 requires foo, got %s", require)
 	}
-	if m.Require[1] != "baz" {
-		t.Fatalf("expecting 2 requires baz, got %s", m.Require)
+	if require[1] != "baz" {
+		t.Fatalf("expecting 2 requires baz, got %s", require)
 	}
 }
 
@@ -171,12 +169,10 @@ func TestModulesFromDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	subset.Assert(
-		t,
-		[]*commonjs.Module{
-			&commonjs.Module{Name: "a/foo"},
-			&commonjs.Module{Name: "b/baz"},
-			&commonjs.Module{Name: "bar"},
-		},
-		l)
+	if len(l) != 3 {
+		t.Fatal("was expecting 3 modules")
+	}
+	if l[0].Name() != "a/foo" || l[1].Name() != "b/baz" || l[2].Name() != "bar" {
+		t.Fatal("did not find expected modules")
+	}
 }
