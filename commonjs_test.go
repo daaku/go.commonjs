@@ -110,7 +110,7 @@ func TestURLBackedModuleInvalid(t *testing.T) {
 func TestFileBackedModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	m := commonjs.NewFileModule(name, "commonjs_test.go")
+	m := commonjs.NewFileModule(name, "_test/a/foo.js")
 	if m.Name() != name {
 		t.Fatalf("unexpected name %s", m.Name())
 	}
@@ -118,8 +118,15 @@ func TestFileBackedModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(content, []byte("meta meta meta")) {
+	if !bytes.Contains(content, []byte("require")) {
 		t.Fatalf("did not find expected content")
+	}
+	r, err := m.Require()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r) != 2 || r[0] != "bar" || r[1] != "b/baz" {
+		t.Fatal("did not find expected require")
 	}
 }
 
