@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"github.com/daaku/go.commonjs"
 	"math"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -112,11 +114,14 @@ func TestJSONModuleError(t *testing.T) {
 
 func TestURLBackedModule(t *testing.T) {
 	t.Parallel()
+	js := []byte("require('foo')")
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write(js)
+		}))
+	defer s.Close()
 	const name = "jquery"
-	m := commonjs.NewURLModule(
-		name,
-		"https://gist.github.com/raw/20708056086e28e3ef7d/"+
-			"ceeb3616d8efd041dcf5205904963986e0dffe79/gistfile1.js")
+	m := commonjs.NewURLModule(name, s.URL+"/")
 	if m.Name() != name {
 		t.Fatalf("unexpected name %s", m.Name())
 	}
@@ -124,7 +129,7 @@ func TestURLBackedModule(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(content, []byte("require")) {
+	if !bytes.Contains(content, js) {
 		t.Fatalf("did not find expected content")
 	}
 	r, err := m.Require()
