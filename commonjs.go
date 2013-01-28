@@ -63,9 +63,27 @@ type CustomProvider struct {
 	modules map[string]Module
 }
 
+// A Chain Provider proxies module requests to an underlying ordered list of
+// Providers.
+type ChainProvider struct {
+	providers []Provider
+}
+
 // Provides modules from a directory.
 type dirProvider struct {
 	path string
+}
+
+type errModuleNotFound string
+
+func (e errModuleNotFound) Error() string {
+	return fmt.Sprintf("module %s was not found", string(e))
+}
+
+// Check if the error indicates the module was not found.
+func IsNotFound(err error) bool {
+	_, ok := err.(errModuleNotFound)
+	return ok
 }
 
 // Define a module with the given content.
@@ -173,9 +191,27 @@ func NewDirProvider(dirname string) Provider {
 func (d *dirProvider) Module(name string) (Module, error) {
 	filename := filepath.Join(d.path, name+".js")
 	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
-		return nil, fmt.Errorf("module %s not found", name)
+		return nil, errModuleNotFound(name)
 	}
 	return NewFileModule(name, filename), nil
+}
+
+func (c *ChainProvider) Add(p Provider) {
+	c.providers = append(c.providers, p)
+}
+
+func (c *ChainProvider) Module(name string) (m Module, err error) {
+	for _, p := range c.providers {
+		m, err = p.Module(name)
+		if err == nil {
+			return m, err
+		}
+		if IsNotFound(err) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, errModuleNotFound(name)
 }
 
 func requireFromModule(m Module) ([]string, error) {
@@ -215,5 +251,5 @@ func (p *CustomProvider) Module(name string) (Module, error) {
 	if m, ok := p.modules[name]; ok {
 		return m, nil
 	}
-	return nil, fmt.Errorf("module %s was not found", name)
+	return nil, errModuleNotFound(name)
 }

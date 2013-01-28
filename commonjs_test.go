@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -55,8 +56,15 @@ func TestCustomProviderModuleNotFound(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
 	c := &commonjs.CustomProvider{}
-	if _, err := c.Module(name); err == nil {
+	_, err := c.Module(name)
+	if err == nil {
 		t.Fatal("was expecting an error")
+	}
+	if !commonjs.IsNotFound(err) {
+		t.Fatal("was expecting an IsNotFound to be true")
+	}
+	if !strings.Contains(err.Error(), name) {
+		t.Fatal("was expecting error to contain name")
 	}
 }
 
@@ -236,5 +244,41 @@ func TestDirProviderNotExist(t *testing.T) {
 	p := commonjs.NewDirProvider("_test")
 	if _, err := p.Module("xyz"); err == nil {
 		t.Fatal("did not find expected error")
+	}
+}
+
+func TestChainProvider(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	c := &commonjs.ChainProvider{}
+	c.Add(&commonjs.CustomProvider{})
+	p := &commonjs.CustomProvider{}
+	c.Add(p)
+	m := commonjs.NewModule(name, nil)
+	if err := p.Add(m); err != nil {
+		t.Fatal(err)
+	}
+
+	// ensure it satisfies commonjs.Provider
+	var pi commonjs.Provider = c
+	m2, err := pi.Module(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m2 != m {
+		t.Fatal("did not find expected module")
+	}
+}
+
+func TestChainProviderNotFound(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	c := &commonjs.ChainProvider{}
+	_, err := c.Module(name)
+	if err == nil {
+		t.Fatal("was expecting an error")
+	}
+	if !commonjs.IsNotFound(err) {
+		t.Fatal("was expecting an IsNotFound to be true")
 	}
 }
