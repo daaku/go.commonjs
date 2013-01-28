@@ -1,4 +1,4 @@
-// Package commonjs provides a Common JS based build system.
+// Package commonjs provides a CommonJS based build system.
 package commonjs
 
 import (
@@ -56,6 +56,12 @@ type fileModule struct {
 	name    string
 	path    string
 	content []byte
+}
+
+type wrapModule struct {
+	Module
+	prelude  []byte
+	postlude []byte
 }
 
 // A CustomProvider allows providing dynamically generated modules.
@@ -252,4 +258,22 @@ func (p *CustomProvider) Module(name string) (Module, error) {
 		return m, nil
 	}
 	return nil, errModuleNotFound(name)
+}
+
+// Wraps another module and provides the ability to supply a prelude and
+// postlude. This is useful to wrap non CommonJS modules.
+func WrapModule(m Module, prelude, postlude []byte) Module {
+	return &wrapModule{
+		Module:   m,
+		prelude:  prelude,
+		postlude: postlude,
+	}
+}
+
+func (w *wrapModule) Content() ([]byte, error) {
+	c, err := w.Module.Content()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
 }

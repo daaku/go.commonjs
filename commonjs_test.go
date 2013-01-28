@@ -282,3 +282,20 @@ func TestChainProviderNotFound(t *testing.T) {
 		t.Fatal("was expecting an IsNotFound to be true")
 	}
 }
+
+func TestWrapModule(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	const content = "require('baz')"
+	const prelude = "prelude"
+	const postlude = "postlude"
+	m := commonjs.NewModule("foo", []byte(content))
+	m = commonjs.WrapModule(m, []byte(prelude), []byte(postlude))
+	c, err := m.Content()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(c) != prelude+content+postlude {
+		t.Fatalf("did not find expected content, found %s", c)
+	}
+}
