@@ -120,7 +120,7 @@ func TestURLBackedModule(t *testing.T) {
 			w.Write(js)
 		}))
 	defer s.Close()
-	const name = "jquery"
+	const name = "foo"
 	m := commonjs.NewURLModule(name, s.URL+"/")
 	if m.Name() != name {
 		t.Fatalf("unexpected name %s", m.Name())
@@ -145,6 +145,13 @@ func TestURLBackedModuleInvalid(t *testing.T) {
 	t.Parallel()
 	if _, err := commonjs.NewURLModule("foo", "foo").Content(); err == nil {
 		t.Fatal("was expecting an error")
+	}
+}
+
+func TestURLBackedModuleInvalidRequire(t *testing.T) {
+	t.Parallel()
+	if _, err := commonjs.NewURLModule("foo", "foo").Require(); err == nil {
+		t.Fatalf("did not find expected exception")
 	}
 }
 

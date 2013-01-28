@@ -39,7 +39,6 @@ type Provider interface {
 type literalModule struct {
 	name    string
 	content []byte
-	require []string
 }
 
 type jsonModule struct {
@@ -51,14 +50,12 @@ type urlModule struct {
 	name    string
 	url     string
 	content []byte
-	require []string
 }
 
 type fileModule struct {
 	name    string
 	path    string
 	content []byte
-	require []string
 }
 
 // A CustomProvider allows providing dynamically generated modules.
@@ -68,8 +65,7 @@ type CustomProvider struct {
 
 // Provides modules from a directory.
 type dirProvider struct {
-	path  string
-	cache map[string]Module
+	path string
 }
 
 // Define a module with the given content.
@@ -89,14 +85,7 @@ func (m *literalModule) Content() ([]byte, error) {
 }
 
 func (m *literalModule) Require() ([]string, error) {
-	if m.require == nil {
-		var err error
-		m.require, err = ParseRequire(m.content)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return m.require, nil
+	return requireFromModule(m)
 }
 
 // Define a module as a JSON data structure. This is useful to inject
@@ -153,17 +142,7 @@ func (m *urlModule) Content() ([]byte, error) {
 }
 
 func (m *urlModule) Require() ([]string, error) {
-	if m.require == nil {
-		content, err := m.Content()
-		if err != nil {
-			return nil, err
-		}
-		m.require, err = ParseRequire(content)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return m.require, nil
+	return requireFromModule(m)
 }
 
 // Define a module where the content is pulled from a file.
@@ -183,17 +162,7 @@ func (m *fileModule) Content() ([]byte, error) {
 }
 
 func (m *fileModule) Require() ([]string, error) {
-	if m.require == nil {
-		content, err := m.Content()
-		if err != nil {
-			return nil, err
-		}
-		m.require, err = ParseRequire(content)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return m.require, nil
+	return requireFromModule(m)
 }
 
 // Provide modules from a directory.
@@ -202,19 +171,19 @@ func NewDirProvider(dirname string) Provider {
 }
 
 func (d *dirProvider) Module(name string) (Module, error) {
-	if m, ok := d.cache[name]; ok {
-		return m, nil
-	}
 	filename := filepath.Join(d.path, name+".js")
 	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
 		return nil, fmt.Errorf("module %s not found", name)
 	}
-	if d.cache == nil {
-		d.cache = make(map[string]Module)
+	return NewFileModule(name, filename), nil
+}
+
+func requireFromModule(m Module) ([]string, error) {
+	content, err := m.Content()
+	if err != nil {
+		return nil, err
 	}
-	m := NewFileModule(name, filename)
-	d.cache[name] = m
-	return m, nil
+	return ParseRequire(content)
 }
 
 // Find all required modules.
