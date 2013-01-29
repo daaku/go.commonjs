@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 )
 
 var (
@@ -78,6 +79,14 @@ type ChainProvider struct {
 // Provides modules from a directory.
 type dirProvider struct {
 	path string
+}
+
+// Defines a "package" which is meant to be served as a file. The content of
+// the package will include the explicitly required Modules as well as their
+// dependencies.
+type Package struct {
+	Provider Provider // the Provider to pull Modules from
+	Module   []string // the Modules to include in the package
 }
 
 type errModuleNotFound string
@@ -276,4 +285,51 @@ func (w *wrapModule) Content() ([]byte, error) {
 		return nil, err
 	}
 	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
+}
+
+func (p *Package) Content() ([]byte, error) {
+	set := make(map[string]bool)
+	if err := p.buildDeps(p.Module, set); err != nil {
+		return nil, err
+	}
+
+	// write a sorted list of modules for predictable output
+	var names []string
+	for name, _ := range set {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var out [][]byte
+	for _, name := range names {
+		m, err := p.Provider.Module(name)
+		if err != nil {
+			return nil, err
+		}
+		content, err := m.Content()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, content)
+	}
+	return bytes.Join(out, nil), nil
+}
+
+func (p *Package) buildDeps(require []string, set map[string]bool) error {
+	for _, name := range require {
+		if set[name] {
+			continue
+		}
+		set[name] = true
+		m, err := p.Provider.Module(name)
+		if err != nil {
+			return err
+		}
+		d, err := m.Require()
+		if err != nil {
+			return err
+		}
+		p.buildDeps(d, set)
+	}
+	return nil
 }

@@ -299,3 +299,19 @@ func TestWrapModule(t *testing.T) {
 		t.Fatalf("did not find expected content, found %s", c)
 	}
 }
+
+func TestPackage(t *testing.T) {
+	t.Parallel()
+	const expected = "require('bar')\nrequire('b/baz')\nrequire('bar')\nbar\n"
+	p := commonjs.Package{
+		Provider: commonjs.NewDirProvider("_test"),
+		Module:   []string{"a/foo", "b/baz"},
+	}
+	content, err := p.Content()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != expected {
+		t.Fatalf("did not find expected content, instead found %s", content)
+	}
+}
