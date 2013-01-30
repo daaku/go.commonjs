@@ -300,7 +300,8 @@ func (p *Package) Content() ([]byte, error) {
 	}
 	sort.Strings(names)
 
-	var out [][]byte
+	out := new(bytes.Buffer)
+	var tmp []byte
 	for _, name := range names {
 		m, err := p.Provider.Module(name)
 		if err != nil {
@@ -310,9 +311,20 @@ func (p *Package) Content() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, content)
+
+		out.WriteString("define(")
+		if tmp, err = json.Marshal(m.Name()); err != nil {
+			return nil, err
+		}
+		out.Write(tmp)
+		out.WriteString(",")
+		if tmp, err = json.Marshal(string(bytes.TrimSpace(content))); err != nil {
+			return nil, err
+		}
+		out.Write(tmp)
+		out.WriteString(");\n")
 	}
-	return bytes.Join(out, nil), nil
+	return out.Bytes(), nil
 }
 
 func (p *Package) buildDeps(require []string, set map[string]bool) error {

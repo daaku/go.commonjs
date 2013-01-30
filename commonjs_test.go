@@ -302,7 +302,10 @@ func TestWrapModule(t *testing.T) {
 
 func TestPackage(t *testing.T) {
 	t.Parallel()
-	const expected = "require('bar')\nrequire('b/baz')\nrequire('bar')\nbar\n"
+	const expected = `define("a/foo","require('bar')\nrequire('b/baz')");
+define("b/baz","require('bar')");
+define("bar","bar");
+`
 	p := commonjs.Package{
 		Provider: commonjs.NewDirProvider("_test"),
 		Module:   []string{"a/foo", "b/baz"},
@@ -312,6 +315,7 @@ func TestPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(content) != expected {
-		t.Fatalf("did not find expected content, instead found %s", content)
+		println(string(content))
+		t.Fatal("did not find expected content, instead found content above")
 	}
 }
