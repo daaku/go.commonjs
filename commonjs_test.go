@@ -10,53 +10,59 @@ import (
 	"testing"
 )
 
-func TestCustomProvider(t *testing.T) {
+func TestAppProvider(t *testing.T) {
 	t.Parallel()
-	const name = "foo"
-	c := &commonjs.CustomProvider{}
-	m := commonjs.NewModule(name, nil)
-	if err := c.Add(m); err != nil {
-		t.Fatal(err)
-	}
+	var (
+		name0    = "name0"
+		js0      = []byte("js0")
+		module0a = commonjs.NewModule(name0, js0)
+		module0b = commonjs.NewModule(name0, js0)
 
-	// ensure it satisfies commonjs.Provider
-	var p commonjs.Provider = c
-	m2, err := p.Module(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m2 != m {
-		t.Fatal("did not find expected module")
+		name1   = "name1"
+		js1     = []byte("js1")
+		module1 = commonjs.NewModule(name1, js1)
+
+		name2   = "name2"
+		js2     = []byte("js2")
+		module2 = commonjs.NewModule(name2, js2)
+
+		a0 = &commonjs.AppProvider{
+			Modules: []commonjs.Module{module0a},
+		}
+		a1 = &commonjs.AppProvider{
+			Modules: []commonjs.Module{module1},
+		}
+		a2 = &commonjs.AppProvider{
+			Providers: []commonjs.Provider{a0, a1},
+			Modules:   []commonjs.Module{module0b, module2},
+		}
+
+		// ensure it satisfies commonjs.Provider
+		p commonjs.Provider = a2
+
+		expected = map[string]commonjs.Module{
+			name0: module0b,
+			name1: module1,
+			name2: module2,
+		}
+	)
+
+	for en, em := range expected {
+		gm, err := p.Module(en)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if gm != em {
+			t.Fatal("failed to find expected Module")
+		}
 	}
 }
 
-func TestCustomProviderRepeatModule(t *testing.T) {
+func TestAppProviderModuleNotFound(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	c := &commonjs.CustomProvider{}
-	m := commonjs.NewModule(name, nil)
-	if err := c.Add(m); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.Add(m); err == nil {
-		t.Fatal("was expecting a error")
-	}
-}
-
-func TestCustomProviderMissingName(t *testing.T) {
-	t.Parallel()
-	c := &commonjs.CustomProvider{}
-	m := commonjs.NewModule("", nil)
-	if err := c.Add(m); err == nil {
-		t.Fatal("was expecting a error")
-	}
-}
-
-func TestCustomProviderModuleNotFound(t *testing.T) {
-	t.Parallel()
-	const name = "foo"
-	c := &commonjs.CustomProvider{}
-	_, err := c.Module(name)
+	a := &commonjs.AppProvider{}
+	_, err := a.Module(name)
 	if err == nil {
 		t.Fatal("was expecting an error")
 	}
@@ -247,42 +253,6 @@ func TestDirProviderNotExist(t *testing.T) {
 	}
 }
 
-func TestChainProvider(t *testing.T) {
-	t.Parallel()
-	const name = "foo"
-	c := &commonjs.ChainProvider{}
-	c.Add(&commonjs.CustomProvider{})
-	p := &commonjs.CustomProvider{}
-	c.Add(p)
-	m := commonjs.NewModule(name, nil)
-	if err := p.Add(m); err != nil {
-		t.Fatal(err)
-	}
-
-	// ensure it satisfies commonjs.Provider
-	var pi commonjs.Provider = c
-	m2, err := pi.Module(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m2 != m {
-		t.Fatal("did not find expected module")
-	}
-}
-
-func TestChainProviderNotFound(t *testing.T) {
-	t.Parallel()
-	const name = "foo"
-	c := &commonjs.ChainProvider{}
-	_, err := c.Module(name)
-	if err == nil {
-		t.Fatal("was expecting an error")
-	}
-	if !commonjs.IsNotFound(err) {
-		t.Fatal("was expecting an IsNotFound to be true")
-	}
-}
-
 func TestWrapModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
@@ -308,7 +278,7 @@ define("bar","bar");
 `
 	p := commonjs.Package{
 		Provider: commonjs.NewDirProvider("_test"),
-		Module:   []string{"a/foo", "b/baz"},
+		Modules:  []string{"a/foo", "b/baz"},
 	}
 	content, err := p.Content()
 	if err != nil {

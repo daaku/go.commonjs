@@ -65,28 +65,22 @@ type wrapModule struct {
 	postlude []byte
 }
 
-// A CustomProvider allows providing dynamically generated modules.
-type CustomProvider struct {
-	modules map[string]Module
-}
-
-// A Chain Provider proxies module requests to an underlying ordered list of
-// Providers.
-type ChainProvider struct {
-	providers []Provider
-}
-
 // Provides modules from a directory.
 type dirProvider struct {
 	path string
 }
 
-// Defines a "package" which is meant to be served as a file. The content of
-// the package will include the explicitly required Modules as well as their
-// dependencies.
+// An AppProvider provides zero or more Modules and zero or more fallback
+// Providers. The preference order is Modules then first Providers with module.
+type AppProvider struct {
+	Modules   []Module
+	Providers []Provider
+}
+
+// A Package delivers a set of requested modules and it's dependencies.
 type Package struct {
 	Provider Provider // the Provider to pull Modules from
-	Module   []string // the Modules to include in the package
+	Modules  []string // the Modules to include in the Package
 }
 
 type errModuleNotFound string
@@ -211,24 +205,6 @@ func (d *dirProvider) Module(name string) (Module, error) {
 	return NewFileModule(name, filename), nil
 }
 
-func (c *ChainProvider) Add(p Provider) {
-	c.providers = append(c.providers, p)
-}
-
-func (c *ChainProvider) Module(name string) (m Module, err error) {
-	for _, p := range c.providers {
-		m, err = p.Module(name)
-		if err == nil {
-			return m, err
-		}
-		if IsNotFound(err) {
-			continue
-		}
-		return nil, err
-	}
-	return nil, errModuleNotFound(name)
-}
-
 func requireFromModule(m Module) ([]string, error) {
 	content, err := m.Content()
 	if err != nil {
@@ -247,24 +223,22 @@ func ParseRequire(content []byte) ([]string, error) {
 	return l, nil
 }
 
-// Add a Module to the provider.
-func (p *CustomProvider) Add(m Module) error {
-	if p.modules == nil {
-		p.modules = make(map[string]Module)
+func (a *AppProvider) Module(name string) (m Module, err error) {
+	for _, m = range a.Modules {
+		if m.Name() == name {
+			return m, nil
+		}
 	}
-	if m.Name() == "" {
-		return errModuleMissingName
-	}
-	if _, exists := p.modules[m.Name()]; exists {
-		return fmt.Errorf("module %s already exists", m.Name())
-	}
-	p.modules[m.Name()] = m
-	return nil
-}
 
-func (p *CustomProvider) Module(name string) (Module, error) {
-	if m, ok := p.modules[name]; ok {
-		return m, nil
+	for _, p := range a.Providers {
+		m, err = p.Module(name)
+		if err == nil {
+			return m, err
+		}
+		if IsNotFound(err) {
+			continue
+		}
+		return nil, err
 	}
 	return nil, errModuleNotFound(name)
 }
@@ -289,7 +263,7 @@ func (w *wrapModule) Content() ([]byte, error) {
 
 func (p *Package) Content() ([]byte, error) {
 	set := make(map[string]bool)
-	if err := p.buildDeps(p.Module, set); err != nil {
+	if err := p.buildDeps(p.Modules, set); err != nil {
 		return nil, err
 	}
 
