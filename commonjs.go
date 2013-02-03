@@ -3,12 +3,14 @@ package commonjs
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -17,6 +19,9 @@ import (
 var (
 	errModuleMissingName = errors.New("module does not have a name")
 	reFunCall            = regexp.MustCompile(`require\(['"](.+?)['"]\)`)
+	hashLen              = 7
+	ext                  = ".js"
+	extLen               = len(ext)
 )
 
 // A Module provides exposes some JavaScript.
@@ -81,6 +86,13 @@ type AppProvider struct {
 type Package struct {
 	Provider Provider // the Provider to pull Modules from
 	Modules  []string // the Modules to include in the Package
+	Handler  *Handler // the Handler to cache and generate URLs.
+}
+
+// A http handler and in-memory package cache.
+type Handler struct {
+	BaseURL string
+	cache   map[string][]byte
 }
 
 type errModuleNotFound string
@@ -318,4 +330,43 @@ func (p *Package) buildDeps(require []string, set map[string]bool) error {
 		p.buildDeps(d, set)
 	}
 	return nil
+}
+
+func (p *Package) URL() (string, error) {
+	content, err := p.Content()
+	if err != nil {
+		return "", err
+	}
+	return p.Handler.Add(content), nil
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	name := path.Base(r.URL.Path)
+	nameLen := len(name)
+	if nameLen != hashLen+extLen {
+		w.WriteHeader(404)
+		w.Write([]byte("invalid url\n"))
+		return
+	}
+	content, found := h.cache[name[:nameLen-extLen]]
+	if !found {
+		w.WriteHeader(404)
+		w.Write([]byte("not found\n"))
+		return
+	}
+	w.Header().Add("Content-Type", "text/javascript")
+	w.WriteHeader(200)
+	w.Write(content)
+}
+
+func (h *Handler) Add(content []byte) string {
+	if h.cache == nil {
+		h.cache = make(map[string][]byte)
+	}
+
+	s := sha256.New()
+	s.Write(content)
+	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
+	h.cache[name] = content
+	return path.Join("/", h.BaseURL, name+ext)
 }
