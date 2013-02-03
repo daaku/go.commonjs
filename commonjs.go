@@ -87,6 +87,7 @@ type Package struct {
 	Provider Provider // the Provider to pull Modules from
 	Modules  []string // the Modules to include in the Package
 	Handler  *Handler // the Handler to cache and generate URLs.
+	Prelude  bool     // if true will include the Prelude
 }
 
 // A http handler and in-memory package cache.
@@ -287,6 +288,11 @@ func (p *Package) Content() ([]byte, error) {
 	sort.Strings(names)
 
 	out := new(bytes.Buffer)
+
+	if p.Prelude {
+		out.WriteString(Prelude())
+	}
+
 	var tmp []byte
 	for _, name := range names {
 		m, err := p.Provider.Module(name)
@@ -369,4 +375,8 @@ func (h *Handler) Add(content []byte) string {
 	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
 	h.cache[name] = content
 	return path.Join("/", h.BaseURL, name+ext)
+}
+
+func Prelude() string {
+	return prelude
 }

@@ -24,6 +24,7 @@ var (
 		Provider: provider,
 		Modules:  []string{"cjse"},
 		Handler:  jshandler,
+		Prelude:  true,
 	}
 )
 
