@@ -15,6 +15,7 @@ var (
 		},
 		Modules: []commonjs.Module{
 			jslib.JQuery_1_8_2,
+			jslib.Bootstrap_2_2_2,
 		},
 	}
 	jshandler = &commonjs.Handler{
@@ -53,7 +54,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				},
 				&h.Body{
 					Inner: &h.Frag{
+						&h.H1{ID: "cjse-log"},
 						&h.Script{Src: url},
+						&h.Script{
+							Inner: h.Unsafe("require('cjse').log('cjse-log')"),
+						},
 					},
 				},
 			},
