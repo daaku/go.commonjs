@@ -88,6 +88,7 @@ type Package struct {
 	Modules  []string // the Modules to include in the Package
 	Handler  *Handler // the Handler to cache and generate URLs.
 	Prelude  bool     // if true will include the Prelude
+	url      string
 }
 
 // A http handler and in-memory package cache.
@@ -339,11 +340,14 @@ func (p *Package) buildDeps(require []string, set map[string]bool) error {
 }
 
 func (p *Package) URL() (string, error) {
-	content, err := p.Content()
-	if err != nil {
-		return "", err
+	if p.url == "" {
+		content, err := p.Content()
+		if err != nil {
+			return "", err
+		}
+		p.url = p.Handler.Add(content)
 	}
-	return p.Handler.Add(content), nil
+	return p.url, nil
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
