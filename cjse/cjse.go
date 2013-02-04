@@ -11,7 +11,7 @@ import (
 var (
 	provider = &commonjs.AppProvider{
 		Providers: []commonjs.Provider{
-			commonjs.NewDirProvider("/home/naitik/usr/go/src/github.com/daaku/go.commonjs/cjse"),
+			commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
 		},
 		Modules: []commonjs.Module{
 			jslib.JQuery_1_8_2,

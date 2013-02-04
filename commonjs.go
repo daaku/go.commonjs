@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -217,6 +218,16 @@ func (m *fileModule) Require() ([]string, error) {
 // Provide modules from a directory.
 func NewDirProvider(dirname string) Provider {
 	return &dirProvider{path: dirname}
+}
+
+// Provide modules from a directory specified as it's import path. This is
+// useful during development to choose a directory based on the GOPATH.
+func NewPackageProvider(path string) Provider {
+	pkg, err := build.Import(path, "", build.FindOnly)
+	if err != nil {
+		panic("import path " + path + " not found")
+	}
+	return NewDirProvider(pkg.Dir)
 }
 
 func (d *dirProvider) Module(name string) (Module, error) {
