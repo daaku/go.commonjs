@@ -18,19 +18,18 @@ var (
 			jslib.Bootstrap_2_2_2,
 		},
 	}
-	jshandler = &commonjs.Handler{
-		BaseURL: "/r/",
-	}
-	pkg = &commonjs.Package{
+	jsURL     = "/r/"
+	jsHandler = commonjs.NewMemoryHandler(jsURL)
+	pkg       = &commonjs.Package{
 		Provider: provider,
 		Modules:  []string{"cjse"},
-		Handler:  jshandler,
+		Handler:  jsHandler,
 		Prelude:  true,
 	}
 )
 
 func main() {
-	http.Handle(jshandler.BaseURL, jshandler)
+	http.Handle(jsURL, jsHandler)
 	http.HandleFunc("/", handler)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)

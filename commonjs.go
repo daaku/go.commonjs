@@ -84,16 +84,24 @@ type AppProvider struct {
 
 // A Package delivers a set of requested modules and it's dependencies.
 type Package struct {
-	Provider Provider // the Provider to pull Modules from
-	Modules  []string // the Modules to include in the Package
-	Handler  *Handler // the Handler to cache and generate URLs.
-	Prelude  bool     // if true will include the Prelude
+	Provider Provider // The Provider to pull Modules from.
+	Modules  []string // The Modules to include in the Package.
+	Handler  Handler  // The Handler to store content, generate & serve URLs.
+	Prelude  bool     // If true will include the Prelude.
 	url      string
 }
 
-// A http handler and in-memory package cache.
-type Handler struct {
-	BaseURL string
+// A http handler with the ability to add content to be served.
+type Handler interface {
+	http.Handler
+
+	// Make some content available via this handler. It returns the URL for the
+	// content.
+	Add(content []byte) string
+}
+
+type memoryHandler struct {
+	baseURL string
 	cache   map[string][]byte
 }
 
@@ -350,7 +358,16 @@ func (p *Package) URL() (string, error) {
 	return p.url, nil
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// Create a new Handler with the given base URL. This Handler caches package
+// content in memory.
+func NewMemoryHandler(url string) Handler {
+	return &memoryHandler{
+		baseURL: url,
+		cache:   make(map[string][]byte),
+	}
+}
+
+func (h *memoryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := path.Base(r.URL.Path)
 	nameLen := len(name)
 	if nameLen != hashLen+extLen {
@@ -369,16 +386,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
-func (h *Handler) Add(content []byte) string {
-	if h.cache == nil {
-		h.cache = make(map[string][]byte)
-	}
-
+func (h *memoryHandler) Add(content []byte) string {
 	s := sha256.New()
 	s.Write(content)
 	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
 	h.cache[name] = content
-	return path.Join("/", h.BaseURL, name+ext)
+	return path.Join("/", h.baseURL, name+ext)
 }
 
 func Prelude() string {
