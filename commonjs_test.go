@@ -260,7 +260,7 @@ func TestWrapModule(t *testing.T) {
 	const prelude = "prelude"
 	const postlude = "postlude"
 	m := commonjs.NewModule("foo", []byte(content))
-	m = commonjs.WrapModule(m, []byte(prelude), []byte(postlude))
+	m = commonjs.NewWrapModule(m, []byte(prelude), []byte(postlude))
 	c, err := m.Content()
 	if err != nil {
 		t.Fatal(err)

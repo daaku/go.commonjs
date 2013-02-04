@@ -4,7 +4,7 @@ import (
 	"github.com/daaku/go.commonjs"
 )
 
-var JQuery_1_8_2 = commonjs.WrapModule(
+var JQuery_1_8_2 = commonjs.NewWrapModule(
 	commonjs.NewURLModule(
 		"jquery",
 		"http://code.jquery.com/jquery-1.8.2.min.js"),

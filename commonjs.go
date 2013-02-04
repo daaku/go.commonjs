@@ -24,7 +24,7 @@ var (
 	extLen               = len(ext)
 )
 
-// A Module provides exposes some JavaScript.
+// A Module provides some JavaScript.
 type Module interface {
 	// The name of the module.
 	Name() string
@@ -267,7 +267,7 @@ func (a *AppProvider) Module(name string) (m Module, err error) {
 
 // Wraps another module and provides the ability to supply a prelude and
 // postlude. This is useful to wrap non CommonJS modules.
-func WrapModule(m Module, prelude, postlude []byte) Module {
+func NewWrapModule(m Module, prelude, postlude []byte) Module {
 	return &wrapModule{
 		Module:   m,
 		prelude:  prelude,
@@ -283,6 +283,7 @@ func (w *wrapModule) Content() ([]byte, error) {
 	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
 }
 
+// Returns the content (including the Prelude if configured).
 func (p *Package) Content() ([]byte, error) {
 	set := make(map[string]bool)
 	if err := p.buildDeps(p.Modules, set); err != nil {
@@ -347,6 +348,7 @@ func (p *Package) buildDeps(require []string, set map[string]bool) error {
 	return nil
 }
 
+// Provides a URL for this Package.
 func (p *Package) URL() (string, error) {
 	if p.url == "" {
 		content, err := p.Content()
@@ -358,8 +360,7 @@ func (p *Package) URL() (string, error) {
 	return p.url, nil
 }
 
-// Create a new Handler with the given base URL. This Handler caches package
-// content in memory.
+// Create a new handler that caches content in memory with the given base URL.
 func NewMemoryHandler(url string) Handler {
 	return &memoryHandler{
 		baseURL: url,
@@ -394,6 +395,8 @@ func (h *memoryHandler) Add(content []byte) string {
 	return path.Join("/", h.baseURL, name+ext)
 }
 
+// Returns the CommonJS/npm style prelude that provides define &
+// require functions.
 func Prelude() string {
 	return prelude
 }
