@@ -2,6 +2,7 @@ package commonjs_test
 
 import (
 	"bytes"
+	"errors"
 	"github.com/daaku/go.commonjs"
 	"math"
 	"net/http"
@@ -9,6 +10,12 @@ import (
 	"strings"
 	"testing"
 )
+
+type providerWithError int
+
+func (p providerWithError) Module(name string) (commonjs.Module, error) {
+	return nil, errors.New("dummy error")
+}
 
 func TestAppProvider(t *testing.T) {
 	t.Parallel()
@@ -71,6 +78,21 @@ func TestAppProviderModuleNotFound(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), name) {
 		t.Fatal("was expecting error to contain name")
+	}
+}
+
+func TestAppProviderOtherError(t *testing.T) {
+	t.Parallel()
+	const name = "foo"
+	a := &commonjs.AppProvider{
+		Providers: []commonjs.Provider{providerWithError(0)},
+	}
+	_, err := a.Module(name)
+	if err == nil {
+		t.Fatal("was expecting an error")
+	}
+	if commonjs.IsNotFound(err) {
+		t.Fatal("was expecting an IsNotFound to be false")
 	}
 }
 
