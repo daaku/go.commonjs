@@ -1,6 +1,15 @@
 package commonjs
 
-var prelude = `
+import (
+	"bitbucket.org/maxhauser/jsmin"
+	"bytes"
+	"strings"
+)
+
+var prelude string
+
+func init() {
+	raw := `
 (function(exports) {
   var _payloads = {},
       _modules = {}
@@ -35,3 +44,7 @@ var prelude = `
   exports.require = require
 })(this)
 `
+	out := new(bytes.Buffer)
+	jsmin.Run(strings.NewReader(raw), out)
+	prelude = out.String()
+}
