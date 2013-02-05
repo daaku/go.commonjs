@@ -76,6 +76,11 @@ type dirProvider struct {
 	path string
 }
 
+type pkgProvider struct {
+	path     string
+	realPath string
+}
+
 // An AppProvider provides zero or more Modules and zero or more fallback
 // Providers. The preference order is Modules then first Providers with module.
 type AppProvider struct {
@@ -223,15 +228,26 @@ func NewDirProvider(dirname string) Provider {
 // Provide modules from a directory specified as it's import path. This is
 // useful during development to choose a directory based on the GOPATH.
 func NewPackageProvider(path string) Provider {
-	pkg, err := build.Import(path, "", build.FindOnly)
-	if err != nil {
-		panic("import path " + path + " not found")
-	}
-	return NewDirProvider(pkg.Dir)
+	return &pkgProvider{path: path}
 }
 
 func (d *dirProvider) Module(name string) (Module, error) {
 	filename := filepath.Join(d.path, name+".js")
+	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
+		return nil, errModuleNotFound(name)
+	}
+	return NewFileModule(name, filename), nil
+}
+
+func (d *pkgProvider) Module(name string) (Module, error) {
+	if d.realPath == "" {
+		pkg, err := build.Import(d.path, "", build.FindOnly)
+		if err != nil {
+			return nil, fmt.Errorf("package provider import path %s not found", d.path)
+		}
+		d.realPath = pkg.Dir
+	}
+	filename := filepath.Join(d.realPath, name+".js")
 	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
 		return nil, errModuleNotFound(name)
 	}
