@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -41,6 +42,14 @@ type Module interface {
 type Provider interface {
 	// Find a named module.
 	Module(name string) (Module, error)
+}
+
+type ByteStore interface {
+	// Store a value with the given key.
+	Store(key string, value []byte) error
+
+	// Get a stored value. A missing value will return nil, nil.
+	Get(key string) ([]byte, error)
 }
 
 type literalModule struct {
@@ -106,9 +115,13 @@ type Handler interface {
 	Add(content []byte) string
 }
 
-type memoryHandler struct {
+type storeHandler struct {
 	baseURL string
-	cache   map[string][]byte
+	store   ByteStore
+}
+
+type memoryStore struct {
+	data map[string][]byte
 }
 
 type errModuleNotFound string
@@ -387,15 +400,16 @@ func (p *Package) URL() (string, error) {
 	return p.url, nil
 }
 
-// Create a new handler that caches content in memory with the given base URL.
-func NewMemoryHandler(url string) Handler {
-	return &memoryHandler{
+// Create a new handler that stores content using content addressable semantics
+// in the given ByteStore.
+func NewHandler(url string, store ByteStore) Handler {
+	return &storeHandler{
 		baseURL: url,
-		cache:   make(map[string][]byte),
+		store:   store,
 	}
 }
 
-func (h *memoryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *storeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := path.Base(r.URL.Path)
 	nameLen := len(name)
 	if nameLen != hashLen+extLen {
@@ -403,8 +417,13 @@ func (h *memoryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("invalid url\n"))
 		return
 	}
-	content, found := h.cache[name[:nameLen-extLen]]
-	if !found {
+	content, err := h.store.Get(name[:nameLen-extLen])
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("error retriving package from store"))
+		log.Printf("error retriving package from store: %s", err)
+	}
+	if content == nil {
 		w.WriteHeader(404)
 		w.Write([]byte("not found\n"))
 		return
@@ -414,11 +433,11 @@ func (h *memoryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
-func (h *memoryHandler) Add(content []byte) string {
+func (h *storeHandler) Add(content []byte) string {
 	s := sha256.New()
 	s.Write(content)
 	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
-	h.cache[name] = content
+	h.store.Store(name, content)
 	return path.Join("/", h.baseURL, name+ext)
 }
 
@@ -426,4 +445,17 @@ func (h *memoryHandler) Add(content []byte) string {
 // require functions.
 func Prelude() string {
 	return prelude
+}
+
+func NewMemoryStore() ByteStore {
+	return &memoryStore{data: make(map[string][]byte)}
+}
+
+func (s *memoryStore) Store(key string, value []byte) error {
+	s.data[key] = value
+	return nil
+}
+
+func (s *memoryStore) Get(key string) ([]byte, error) {
+	return s.data[key], nil
 }

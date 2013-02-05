@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/daaku/go.commonjs"
+	"github.com/daaku/go.commonjs/jsh"
 	"github.com/daaku/go.commonjs/jslib"
 	"github.com/daaku/go.h"
 	"log"
@@ -19,13 +20,8 @@ var (
 		},
 	}
 	jsURL     = "/r/"
-	jsHandler = commonjs.NewMemoryHandler(jsURL)
-	pkg       = &commonjs.Package{
-		Provider: provider,
-		Modules:  []string{"cjse"},
-		Handler:  jsHandler,
-		Prelude:  true,
-	}
+	jsStore   = commonjs.NewMemoryStore()
+	jsHandler = commonjs.NewHandler(jsURL, jsStore)
 )
 
 func main() {
@@ -37,10 +33,7 @@ func main() {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	url, err := pkg.URL()
-	if err != nil {
-		log.Fatal(err)
-	}
+	const id = "cjse-log"
 	h.Write(
 		w,
 		&h.Document{
@@ -53,10 +46,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				},
 				&h.Body{
 					Inner: &h.Frag{
-						&h.H1{ID: "cjse-log"},
-						&h.Script{Src: url},
-						&h.Script{
-							Inner: h.Unsafe("require('cjse').log('cjse-log')"),
+						&h.H1{ID: id},
+						&jsh.AppScripts{
+							Provider: provider,
+							Handler:  jsHandler,
+							Store:    jsStore,
+							Calls: []*jsh.Call{
+								&jsh.Call{
+									Module:   "cjse",
+									Function: "log",
+									Args:     []interface{}{id},
+								},
+							},
 						},
 					},
 				},
