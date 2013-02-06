@@ -22,45 +22,43 @@ var (
 	jsURL     = "/r/"
 	jsStore   = commonjs.NewMemoryStore()
 	jsHandler = commonjs.NewHandler(jsURL, jsStore)
-)
 
-func main() {
-	http.Handle(jsURL, jsHandler)
-	http.HandleFunc("/", handler)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	const id = "cjse-log"
-	h.Write(
-		w,
-		&h.Document{
-			Inner: &h.Frag{
-				&h.Head{
-					Inner: &h.Frag{
-						&h.Meta{Charset: "utf-8"},
-						&h.Title{h.String("CommonJS Example")},
-					},
+	elementID = "cjse-log"
+	document  = h.Compile(&h.Document{
+		Inner: &h.Frag{
+			&h.Head{
+				Inner: &h.Frag{
+					&h.Meta{Charset: "utf-8"},
+					&h.Title{h.String("CommonJS Example")},
 				},
-				&h.Body{
-					Inner: &h.Frag{
-						&h.H1{ID: id},
-						&jsh.AppScripts{
-							Provider: jsProvider,
-							Handler:  jsHandler,
-							Store:    jsStore,
-							Calls: []*jsh.Call{
-								&jsh.Call{
-									Module:   "cjse",
-									Function: "log",
-									Args:     []interface{}{id},
-								},
+			},
+			&h.Body{
+				Inner: &h.Frag{
+					&h.H1{ID: elementID},
+					&jsh.AppScripts{
+						Provider: jsProvider,
+						Handler:  jsHandler,
+						Store:    jsStore,
+						Calls: []*jsh.Call{
+							&jsh.Call{
+								Module:   "cjse",
+								Function: "log",
+								Args:     []interface{}{elementID},
 							},
 						},
 					},
 				},
 			},
-		})
+		},
+	})
+)
+
+func main() {
+	http.Handle(jsURL, jsHandler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		h.Write(w, document)
+	})
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
 }
