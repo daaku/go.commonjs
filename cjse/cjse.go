@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	provider = &commonjs.AppProvider{
+	jsProvider = &commonjs.AppProvider{
 		Providers: []commonjs.Provider{
 			commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
 		},
@@ -48,7 +48,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 					Inner: &h.Frag{
 						&h.H1{ID: id},
 						&jsh.AppScripts{
-							Provider: provider,
+							Provider: jsProvider,
 							Handler:  jsHandler,
 							Store:    jsStore,
 							Calls: []*jsh.Call{

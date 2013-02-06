@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"github.com/daaku/go.commonjs"
 	"github.com/daaku/go.h"
+	"strings"
 )
 
 // A single JavaScript Function call.
@@ -56,12 +57,7 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 		buf.WriteString(");")
 	}
 
-	pkg := &commonjs.Package{
-		Provider: a,
-		Handler:  a.Handler,
-		Modules:  modules,
-	}
-	src, err := pkg.URL()
+	src, err := a.url(modules)
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +67,31 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 		&h.Script{Src: src},
 		&h.Script{Inner: h.UnsafeBytes(buf.Bytes())},
 	}, nil
+}
+
+func (a *AppScripts) url(modules []string) (string, error) {
+	key := strings.Join(modules, "")
+	raw, err := a.Store.Get(key)
+	if err != nil {
+		return "", err
+	}
+	if raw != nil {
+		return string(raw), nil
+	}
+	pkg := &commonjs.Package{
+		Provider: a,
+		Handler:  a.Handler,
+		Modules:  modules,
+	}
+	src, err := pkg.URL()
+	if err != nil {
+		return "", err
+	}
+	err = a.Store.Store(key, []byte(src))
+	if err != nil {
+		return "", err
+	}
+	return src, err
 }
 
 func (a *AppScripts) Module(name string) (commonjs.Module, error) {
