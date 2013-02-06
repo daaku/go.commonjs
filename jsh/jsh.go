@@ -23,7 +23,7 @@ type AppScripts struct {
 	Handler        commonjs.Handler
 	Store          commonjs.ByteStore
 	Modules        []commonjs.Module // this should be used for dynamically generated modules
-	Calls          []*Call
+	Calls          []Call
 	scriptURLCache string
 }
 

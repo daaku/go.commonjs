@@ -39,8 +39,8 @@ var (
 						Provider: jsProvider,
 						Handler:  jsHandler,
 						Store:    jsStore,
-						Calls: []*jsh.Call{
-							&jsh.Call{
+						Calls: []jsh.Call{
+							jsh.Call{
 								Module:   "cjse",
 								Function: "log",
 								Args:     []interface{}{elementID},
