@@ -11,9 +11,9 @@ import (
 
 // A single JavaScript Function call.
 type Call struct {
-	Module   string
-	Function string
-	Args     []interface{}
+	Module   string        `json:"name"`
+	Function string        `json:"fn"`
+	Args     []interface{} `json:"args"`
 }
 
 // A minimal set of script blocks and efficient loading of an external package
@@ -33,26 +33,12 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 	modules := make([]string, len(a.Calls))
 	for ix, call := range a.Calls {
 		modules[ix] = call.Module
-		buf.WriteString("require(")
-		tmp, err = json.Marshal(call.Module)
+		buf.WriteString("execute(")
+		tmp, err = json.Marshal(call)
 		if err != nil {
 			return nil, err
 		}
 		buf.Write(tmp)
-		buf.WriteString(").")
-		buf.WriteString(call.Function)
-		buf.WriteString("(")
-		last := len(call.Args) - 1
-		for iy, arg := range call.Args {
-			tmp, err = json.Marshal(arg)
-			if err != nil {
-				return nil, err
-			}
-			buf.Write(tmp)
-			if iy != last {
-				buf.WriteString(",")
-			}
-		}
 		buf.WriteString(");")
 	}
 
@@ -62,9 +48,16 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 	}
 
 	return &h.Frag{
-		&h.Script{Inner: h.Unsafe(commonjs.Prelude())},
-		&h.Script{Src: src},
-		&h.Script{Inner: h.UnsafeBytes(buf.Bytes())},
+		&h.Script{
+			Inner: &h.Frag{
+				h.Unsafe(commonjs.Prelude()),
+				h.UnsafeBytes(buf.Bytes()),
+			},
+		},
+		&h.Script{
+			Src:   src,
+			Async: true,
+		},
 	}, nil
 }
 

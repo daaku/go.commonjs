@@ -13,9 +13,42 @@ func init() {
 (function(exports) {
   var _payloads = {},
       _modules = {}
+      _execute = []
+      _schedule = null
 
   function key(name) {
     return '_n_' + name
+  }
+
+  function run() {
+    var current = _execute
+    _execute = []
+    for (var i=0, l=current.length; i<l; i++) {
+      var c = current[i],
+          k = key(c.name)
+      if (_modules[k] || _payloads[k]) {
+        require(c.name)[c.fn].apply(null, c.args)
+      } else {
+        execute(c)
+      }
+    }
+  }
+
+  function schedule() {
+    if (!_schedule) {
+      _schedule = window.setTimeout(
+        function() {
+          _schedule = null
+          run()
+        },
+        0
+      )
+    }
+  }
+
+  function execute(c) {
+    _execute.push(c)
+    schedule()
   }
 
   function require(name) {
@@ -38,11 +71,13 @@ func init() {
     if (k in _payloads || k in _modules)
       throw 'module ' + name + ' already defined'
     _payloads[k] = payload
+    schedule()
   }
 
   exports.define = define
   exports.require = require
-})(this)
+  exports.execute = execute
+})(this);
 `
 	out := new(bytes.Buffer)
 	jsmin.Run(strings.NewReader(raw), out)
