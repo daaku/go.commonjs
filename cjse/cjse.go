@@ -19,9 +19,10 @@ var (
 			jslib.Bootstrap_2_2_2,
 		},
 	}
-	jsURL     = "/r/"
-	jsStore   = commonjs.NewMemoryStore()
-	jsHandler = commonjs.NewHandler(jsURL, jsStore)
+	jsURL          = "/r/"
+	jsContentStore = commonjs.NewMemoryStore()
+	jsURLStore     = commonjs.NewMemoryStore()
+	jsHandler      = commonjs.NewHandler(jsURL, jsContentStore)
 
 	elementID = "cjse-log"
 	document  = h.Compile(&h.Document{
@@ -38,7 +39,7 @@ var (
 					&jsh.AppScripts{
 						Provider: jsProvider,
 						Handler:  jsHandler,
-						Store:    jsStore,
+						URLStore: jsURLStore,
 						Calls: []jsh.Call{
 							jsh.Call{
 								Module:   "cjse",

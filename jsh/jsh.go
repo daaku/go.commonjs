@@ -19,12 +19,11 @@ type Call struct {
 // A minimal set of script blocks and efficient loading of an external package
 // file.
 type AppScripts struct {
-	Provider       commonjs.Provider
-	Handler        commonjs.Handler
-	Store          commonjs.ByteStore
-	Modules        []commonjs.Module // this should be used for dynamically generated modules
-	Calls          []Call
-	scriptURLCache string
+	Provider commonjs.Provider
+	Handler  commonjs.Handler
+	URLStore commonjs.ByteStore
+	Modules  []commonjs.Module // this should be used for dynamically generated modules
+	Calls    []Call
 }
 
 func (a *AppScripts) HTML() (h.HTML, error) {
@@ -71,7 +70,7 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 
 func (a *AppScripts) url(modules []string) (string, error) {
 	key := strings.Join(modules, "")
-	raw, err := a.Store.Get(key)
+	raw, err := a.URLStore.Get(key)
 	if err != nil {
 		return "", err
 	}
@@ -87,7 +86,7 @@ func (a *AppScripts) url(modules []string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = a.Store.Store(key, []byte(src))
+	err = a.URLStore.Store(key, []byte(src))
 	if err != nil {
 		return "", err
 	}
