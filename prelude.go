@@ -1,19 +1,10 @@
 package commonjs
 
-import (
-	"bitbucket.org/maxhauser/jsmin"
-	"bytes"
-	"strings"
-)
-
-var prelude string
-
-func init() {
-	raw := `
+const prelude = `
 (function(exports) {
   var _payloads = {},
-      _modules = {}
-      _execute = []
+      _modules = {},
+      _execute = [],
       _schedule = null
 
   function key(name) {
@@ -79,7 +70,9 @@ func init() {
   exports.execute = execute
 })(this);
 `
-	out := new(bytes.Buffer)
-	jsmin.Run(strings.NewReader(raw), out)
-	prelude = out.String()
+
+// Returns the CommonJS/npm style prelude that provides define, require &
+// execute functions.
+func Prelude() string {
+	return prelude
 }

@@ -52,6 +52,12 @@ type ByteStore interface {
 	Get(key string) ([]byte, error)
 }
 
+// Package content may be transformed. This is useful for minification for
+// example.
+type TransformContent interface {
+	TransformContent(content []byte) ([]byte, error)
+}
+
 type literalModule struct {
 	name    string
 	content []byte
@@ -99,11 +105,11 @@ type AppProvider struct {
 
 // A Package delivers a set of requested modules and it's dependencies.
 type Package struct {
-	Provider Provider // The Provider to pull Modules from.
-	Modules  []string // The Modules to include in the Package.
-	Handler  Handler  // The Handler to store content, generate & serve URLs.
-	Prelude  bool     // If true will include the Prelude.
-	url      string
+	Provider         Provider // The Provider to pull Modules from.
+	Modules          []string // The Modules to include in the Package.
+	Handler          Handler  // The Handler to store content, generate & serve URLs.
+	TransformContent []TransformContent
+	url              string
 }
 
 // A http handler with the ability to add content to be served.
@@ -323,7 +329,7 @@ func (w *wrapModule) Content() ([]byte, error) {
 	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
 }
 
-// Returns the content (including the Prelude if configured).
+// Returns the content.
 func (p *Package) Content() ([]byte, error) {
 	set := make(map[string]bool)
 	if err := p.buildDeps(p.Modules, set); err != nil {
@@ -339,10 +345,6 @@ func (p *Package) Content() ([]byte, error) {
 
 	out := new(bytes.Buffer)
 
-	if p.Prelude {
-		out.WriteString(Prelude())
-	}
-
 	var tmp []byte
 	for _, name := range names {
 		m, err := p.Provider.Module(name)
@@ -352,6 +354,11 @@ func (p *Package) Content() ([]byte, error) {
 		content, err := m.Content()
 		if err != nil {
 			return nil, err
+		}
+		for _, transformer := range p.TransformContent {
+			if content, err = transformer.TransformContent(content); err != nil {
+				return nil, err
+			}
 		}
 
 		out.WriteString("define(")
@@ -439,12 +446,6 @@ func (h *storeHandler) Add(content []byte) string {
 	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
 	h.store.Store(name, content)
 	return path.Join("/", h.baseURL, name+ext)
-}
-
-// Returns the CommonJS/npm style prelude that provides define &
-// require functions.
-func Prelude() string {
-	return prelude
 }
 
 func NewMemoryStore() ByteStore {

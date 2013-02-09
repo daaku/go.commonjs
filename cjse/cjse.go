@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/daaku/go.commonjs"
+	"github.com/daaku/go.commonjs/closure"
 	"github.com/daaku/go.commonjs/jsh"
 	"github.com/daaku/go.commonjs/jslib"
 	"github.com/daaku/go.h"
@@ -40,6 +41,9 @@ var (
 						Provider: jsProvider,
 						Handler:  jsHandler,
 						URLStore: jsURLStore,
+						TransformContent: []commonjs.TransformContent{
+							&closure.Closure{},
+						},
 						Calls: []jsh.Call{
 							jsh.Call{
 								Module:   "cjse",
@@ -57,7 +61,9 @@ var (
 func main() {
 	http.Handle(jsURL, jsHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		h.Write(w, document)
+		if _, err := h.Write(w, document); err != nil {
+			log.Fatal(err)
+		}
 	})
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)

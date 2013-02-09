@@ -19,11 +19,27 @@ type Call struct {
 // A minimal set of script blocks and efficient loading of an external package
 // file.
 type AppScripts struct {
-	Provider commonjs.Provider
-	Handler  commonjs.Handler
-	URLStore commonjs.ByteStore
-	Modules  []commonjs.Module // this should be used for dynamically generated modules
-	Calls    []Call
+	Provider         commonjs.Provider
+	Handler          commonjs.Handler
+	URLStore         commonjs.ByteStore
+	TransformContent []commonjs.TransformContent
+	Modules          []commonjs.Module // this should be used for dynamically generated modules
+	Calls            []Call
+	preludeHTML      h.HTML
+}
+
+func (a *AppScripts) prelude() (h.HTML, error) {
+	if a.preludeHTML == nil {
+		var err error
+		content := []byte(commonjs.Prelude())
+		for _, transformer := range a.TransformContent {
+			if content, err = transformer.TransformContent(content); err != nil {
+				return nil, err
+			}
+		}
+		a.preludeHTML = h.UnsafeBytes(content)
+	}
+	return a.preludeHTML, nil
 }
 
 func (a *AppScripts) HTML() (h.HTML, error) {
@@ -47,10 +63,15 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 		return nil, err
 	}
 
+	prelude, err := a.prelude()
+	if err != nil {
+		return nil, err
+	}
+
 	return &h.Frag{
 		&h.Script{
 			Inner: &h.Frag{
-				h.Unsafe(commonjs.Prelude()),
+				prelude,
 				h.UnsafeBytes(buf.Bytes()),
 			},
 		},
@@ -71,9 +92,10 @@ func (a *AppScripts) url(modules []string) (string, error) {
 		return string(raw), nil
 	}
 	pkg := &commonjs.Package{
-		Provider: a,
-		Handler:  a.Handler,
-		Modules:  modules,
+		Provider:         a,
+		Handler:          a.Handler,
+		Modules:          modules,
+		TransformContent: a.TransformContent,
 	}
 	src, err := pkg.URL()
 	if err != nil {
