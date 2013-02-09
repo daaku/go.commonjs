@@ -38,12 +38,10 @@ var (
 				Inner: &h.Frag{
 					&h.H1{ID: elementID},
 					&jsh.AppScripts{
-						Provider: jsProvider,
-						Handler:  jsHandler,
-						URLStore: jsURLStore,
-						TransformContent: []commonjs.TransformContent{
-							&closure.Closure{},
-						},
+						Provider:  jsProvider,
+						Handler:   jsHandler,
+						URLStore:  jsURLStore,
+						Transform: &closure.Closure{},
 						Calls: []jsh.Call{
 							jsh.Call{
 								Module:   "cjse",

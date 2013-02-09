@@ -24,7 +24,7 @@ type closureResponse struct {
 	CompiledCode string `json:"compiledCode"`
 }
 
-func (c *Closure) TransformContent(content []byte) ([]byte, error) {
+func (c *Closure) Transform(content []byte) ([]byte, error) {
 	l := string(c.Level)
 	if l == "" {
 		l = string(SimpleOptimizations)

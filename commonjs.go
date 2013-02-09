@@ -54,8 +54,8 @@ type ByteStore interface {
 
 // Package content may be transformed. This is useful for minification for
 // example.
-type TransformContent interface {
-	TransformContent(content []byte) ([]byte, error)
+type Transform interface {
+	Transform(content []byte) ([]byte, error)
 }
 
 type literalModule struct {
@@ -105,11 +105,11 @@ type AppProvider struct {
 
 // A Package delivers a set of requested modules and it's dependencies.
 type Package struct {
-	Provider         Provider // The Provider to pull Modules from.
-	Modules          []string // The Modules to include in the Package.
-	Handler          Handler  // The Handler to store content, generate & serve URLs.
-	TransformContent []TransformContent
-	url              string
+	Provider  Provider // The Provider to pull Modules from.
+	Modules   []string // The Modules to include in the Package.
+	Handler   Handler  // The Handler to store content, generate & serve URLs.
+	Transform Transform
+	url       string
 }
 
 // A http handler with the ability to add content to be served.
@@ -355,8 +355,8 @@ func (p *Package) Content() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, transformer := range p.TransformContent {
-			if content, err = transformer.TransformContent(content); err != nil {
+		if p.Transform != nil {
+			if content, err = p.Transform.Transform(content); err != nil {
 				return nil, err
 			}
 		}

@@ -5,11 +5,11 @@ import (
 	"bytes"
 )
 
-var JSMin TransformContent = &jsminTransform{}
+var JSMin Transform = &jsminTransform{}
 
 type jsminTransform struct{}
 
-func (j *jsminTransform) TransformContent(content []byte) ([]byte, error) {
+func (j *jsminTransform) Transform(content []byte) ([]byte, error) {
 	out := new(bytes.Buffer)
 	jsmin.Run(bytes.NewBuffer(content), out)
 	return out.Bytes(), nil

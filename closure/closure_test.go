@@ -10,7 +10,7 @@ func TestSimple(t *testing.T) {
 	in := []byte("function foo() { return 1; }")
 	expected := []byte("function foo(){return 1};")
 	c := &closure.Closure{}
-	actual, err := c.TransformContent(in)
+	actual, err := c.Transform(in)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,24 +16,26 @@ type Call struct {
 	Args     []interface{} `json:"args"`
 }
 
+// An application instance configuring
+
 // A minimal set of script blocks and efficient loading of an external package
 // file.
 type AppScripts struct {
-	Provider         commonjs.Provider
-	Handler          commonjs.Handler
-	URLStore         commonjs.ByteStore
-	TransformContent []commonjs.TransformContent
-	Modules          []commonjs.Module // this should be used for dynamically generated modules
-	Calls            []Call
-	preludeHTML      h.HTML
+	Provider    commonjs.Provider
+	Handler     commonjs.Handler
+	URLStore    commonjs.ByteStore
+	Transform   commonjs.Transform
+	Modules     []commonjs.Module // this should be used for dynamically generated modules
+	Calls       []Call
+	preludeHTML h.HTML
 }
 
 func (a *AppScripts) prelude() (h.HTML, error) {
 	if a.preludeHTML == nil {
 		var err error
 		content := []byte(commonjs.Prelude())
-		for _, transformer := range a.TransformContent {
-			if content, err = transformer.TransformContent(content); err != nil {
+		if a.Transform != nil {
+			if content, err = a.Transform.Transform(content); err != nil {
 				return nil, err
 			}
 		}
@@ -92,10 +94,10 @@ func (a *AppScripts) url(modules []string) (string, error) {
 		return string(raw), nil
 	}
 	pkg := &commonjs.Package{
-		Provider:         a,
-		Handler:          a.Handler,
-		Modules:          modules,
-		TransformContent: a.TransformContent,
+		Provider:  a,
+		Handler:   a.Handler,
+		Modules:   modules,
+		Transform: a.Transform,
 	}
 	src, err := pkg.URL()
 	if err != nil {
