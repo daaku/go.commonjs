@@ -58,60 +58,6 @@ type Transform interface {
 	Transform(content []byte) ([]byte, error)
 }
 
-type literalModule struct {
-	name    string
-	content []byte
-}
-
-type jsonModule struct {
-	name  string
-	value interface{}
-}
-
-type urlModule struct {
-	name    string
-	url     string
-	content []byte
-}
-
-type fileModule struct {
-	name    string
-	path    string
-	content []byte
-}
-
-type wrapModule struct {
-	Module
-	prelude  []byte
-	postlude []byte
-}
-
-// Provides modules from a directory.
-type dirProvider struct {
-	path string
-}
-
-type pkgProvider struct {
-	path     string
-	realPath string
-}
-
-// An AppProvider provides zero or more Modules and zero or more fallback
-// Providers. The preference order is Modules then first Providers with module.
-type AppProvider struct {
-	Modules   []Module
-	Providers []Provider
-}
-
-// A Package delivers a set of requested modules and it's dependencies.
-type Package struct {
-	Provider  Provider // The Provider to pull Modules from.
-	Modules   []string // The Modules to include in the Package.
-	Handler   Handler  // The Handler to store content, generate & serve URLs.
-	Transform Transform
-	url       string
-}
-
 // A http handler with the ability to add content to be served.
 type Handler interface {
 	http.Handler
@@ -119,15 +65,6 @@ type Handler interface {
 	// Make some content available via this handler. It returns the URL for the
 	// content.
 	Add(content []byte) string
-}
-
-type storeHandler struct {
-	baseURL string
-	store   ByteStore
-}
-
-type memoryStore struct {
-	data map[string][]byte
 }
 
 type errModuleNotFound string
@@ -140,6 +77,11 @@ func (e errModuleNotFound) Error() string {
 func IsNotFound(err error) bool {
 	_, ok := err.(errModuleNotFound)
 	return ok
+}
+
+type literalModule struct {
+	name    string
+	content []byte
 }
 
 // Define a module with the given content.
@@ -160,6 +102,11 @@ func (m *literalModule) Content() ([]byte, error) {
 
 func (m *literalModule) Require() ([]string, error) {
 	return requireFromModule(m)
+}
+
+type jsonModule struct {
+	name  string
+	value interface{}
 }
 
 // Define a module as a JSON data structure. This is useful to inject
@@ -186,6 +133,12 @@ func (m *jsonModule) Content() ([]byte, error) {
 
 func (m *jsonModule) Require() ([]string, error) {
 	return nil, nil
+}
+
+type urlModule struct {
+	name    string
+	url     string
+	content []byte
 }
 
 // Define a module where the content is pulled from a URL.
@@ -219,6 +172,12 @@ func (m *urlModule) Require() ([]string, error) {
 	return requireFromModule(m)
 }
 
+type fileModule struct {
+	name    string
+	path    string
+	content []byte
+}
+
 // Define a module where the content is pulled from a file.
 func NewFileModule(name string, filename string) Module {
 	return &fileModule{
@@ -239,9 +198,19 @@ func (m *fileModule) Require() ([]string, error) {
 	return requireFromModule(m)
 }
 
+// Provides modules from a directory.
+type dirProvider struct {
+	path string
+}
+
 // Provide modules from a directory.
 func NewDirProvider(dirname string) Provider {
 	return &dirProvider{path: dirname}
+}
+
+type pkgProvider struct {
+	path     string
+	realPath string
 }
 
 // Provide modules from a directory specified as it's import path. This is
@@ -291,6 +260,13 @@ func ParseRequire(content []byte) ([]string, error) {
 	return l, nil
 }
 
+// An AppProvider provides zero or more Modules and zero or more fallback
+// Providers. The preference order is Modules then first Providers with module.
+type AppProvider struct {
+	Modules   []Module
+	Providers []Provider
+}
+
 func (a *AppProvider) Module(name string) (m Module, err error) {
 	for _, m = range a.Modules {
 		if m.Name() == name {
@@ -311,6 +287,12 @@ func (a *AppProvider) Module(name string) (m Module, err error) {
 	return nil, errModuleNotFound(name)
 }
 
+type wrapModule struct {
+	Module
+	prelude  []byte
+	postlude []byte
+}
+
 // Wraps another module and provides the ability to supply a prelude and
 // postlude. This is useful to wrap non CommonJS modules.
 func NewWrapModule(m Module, prelude, postlude []byte) Module {
@@ -327,6 +309,15 @@ func (w *wrapModule) Content() ([]byte, error) {
 		return nil, err
 	}
 	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
+}
+
+// A Package delivers a set of requested modules and it's dependencies.
+type Package struct {
+	Provider  Provider // The Provider to pull Modules from.
+	Modules   []string // The Modules to include in the Package.
+	Handler   Handler  // The Handler to store content, generate & serve URLs.
+	Transform Transform
+	url       string
 }
 
 // Returns the content.
@@ -407,6 +398,11 @@ func (p *Package) URL() (string, error) {
 	return p.url, nil
 }
 
+type storeHandler struct {
+	baseURL string
+	store   ByteStore
+}
+
 // Create a new handler that stores content using content addressable semantics
 // in the given ByteStore.
 func NewHandler(url string, store ByteStore) Handler {
@@ -446,6 +442,10 @@ func (h *storeHandler) Add(content []byte) string {
 	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
 	h.store.Store(name, content)
 	return path.Join("/", h.baseURL, name+ext)
+}
+
+type memoryStore struct {
+	data map[string][]byte
 }
 
 func NewMemoryStore() ByteStore {
