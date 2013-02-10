@@ -310,7 +310,12 @@ func (a *App) ModulesURL(modules []string) (string, error) {
 	}
 
 	url = path.Join("/", a.MountPath, hash+ext)
+
+	if a.packageURLs == nil {
+		a.packageURLs = make(map[string]string)
+	}
 	a.packageURLs[key] = url
+
 	return url, nil
 }
 
