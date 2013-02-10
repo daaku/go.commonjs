@@ -10,7 +10,7 @@ import (
 
 // A single JavaScript Function call.
 type Call struct {
-	Module   string        `json:"name"`
+	Module   string        `json:"module"`
 	Function string        `json:"fn"`
 	Args     []interface{} `json:"args"`
 }

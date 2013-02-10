@@ -16,9 +16,9 @@ const prelude = `
     _execute = []
     for (var i=0, l=current.length; i<l; i++) {
       var c = current[i],
-          k = key(c.name)
+          k = key(c.module)
       if (_modules[k] || _payloads[k]) {
-        require(c.name)[c.fn].apply(null, c.args)
+        require(c.module)[c.fn].apply(null, c.args)
       } else {
         execute(c)
       }
