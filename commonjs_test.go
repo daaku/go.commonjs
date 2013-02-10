@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -17,7 +18,7 @@ func (p providerWithError) Module(name string) (commonjs.Module, error) {
 	return nil, errors.New("dummy error")
 }
 
-func TestAppProvider(t *testing.T) {
+func TestApp(t *testing.T) {
 	t.Parallel()
 	var (
 		name0    = "name0"
@@ -33,13 +34,13 @@ func TestAppProvider(t *testing.T) {
 		js2     = []byte("js2")
 		module2 = commonjs.NewModule(name2, js2)
 
-		a0 = &commonjs.AppProvider{
+		a0 = &commonjs.App{
 			Modules: []commonjs.Module{module0a},
 		}
-		a1 = &commonjs.AppProvider{
+		a1 = &commonjs.App{
 			Modules: []commonjs.Module{module1},
 		}
-		a2 = &commonjs.AppProvider{
+		a2 = &commonjs.App{
 			Providers: []commonjs.Provider{a0, a1},
 			Modules:   []commonjs.Module{module0b, module2},
 		}
@@ -65,10 +66,10 @@ func TestAppProvider(t *testing.T) {
 	}
 }
 
-func TestAppProviderModuleNotFound(t *testing.T) {
+func TestAppModuleNotFound(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	a := &commonjs.AppProvider{}
+	a := &commonjs.App{}
 	_, err := a.Module(name)
 	if err == nil {
 		t.Fatal("was expecting an error")
@@ -81,10 +82,10 @@ func TestAppProviderModuleNotFound(t *testing.T) {
 	}
 }
 
-func TestAppProviderOtherError(t *testing.T) {
+func TestAppOtherError(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
-	a := &commonjs.AppProvider{
+	a := &commonjs.App{
 		Providers: []commonjs.Provider{providerWithError(0)},
 	}
 	_, err := a.Module(name)
@@ -292,21 +293,32 @@ func TestWrapModule(t *testing.T) {
 	}
 }
 
-func TestPackage(t *testing.T) {
+func TestAppURLAndContent(t *testing.T) {
 	t.Parallel()
-	const expected = `define("a/foo","require('bar')\nrequire('b/baz')");
+	const expectedURL = "/r/a102771.js"
+	const expectedContent = `define("a/foo","require('bar')\nrequire('b/baz')");
 define("b/baz","require('bar')");
 define("bar","bar");
 `
-	p := commonjs.Package{
-		Provider: commonjs.NewDirProvider("_test"),
-		Modules:  []string{"a/foo", "b/baz"},
+	p := &commonjs.App{
+		MountPath:    "r",
+		Providers:    []commonjs.Provider{commonjs.NewDirProvider("_test")},
+		ContentStore: commonjs.NewMemoryStore(),
 	}
-	content, err := p.Content()
+	actualURL, err := p.ModulesURL([]string{"a/foo", "b/baz"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(content) != expected {
+	if actualURL != expectedURL {
+		t.Fatalf("did not find expected url, instead found %s", actualURL)
+	}
+	w := httptest.NewRecorder()
+	p.ServeHTTP(w, &http.Request{URL: &url.URL{Path: actualURL}})
+	content := w.Body.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != expectedContent {
 		println(string(content))
 		t.Fatal("did not find expected content, instead found content above")
 	}

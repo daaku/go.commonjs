@@ -7,6 +7,7 @@ import (
 )
 
 func TestSimple(t *testing.T) {
+	t.Parallel()
 	in := []byte("function foo() { return 1; }")
 	expected := []byte("function foo(){return 1};")
 	c := &closure.Closure{}
