@@ -5,6 +5,7 @@ import (
 	"bytes"
 )
 
+// Provides a basic jsmin based transform.
 var JSMin Transform = &jsminTransform{}
 
 type jsminTransform struct{}

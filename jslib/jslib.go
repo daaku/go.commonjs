@@ -1,3 +1,4 @@
+// Package jslib provides often used third party JS libraries.
 package jslib
 
 import (

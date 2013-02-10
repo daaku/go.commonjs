@@ -1,3 +1,5 @@
+// Command cjse provides an example of an application built using go.commonjs
+// and go.h.
 package main
 
 import (

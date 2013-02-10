@@ -1,3 +1,5 @@
+// Package closure provides a transform for minifying JavaScript using the
+// Closure REST APIs.
 package closure
 
 import (
@@ -6,6 +8,7 @@ import (
 	"net/url"
 )
 
+// Defines the various compilation levels provided by the Closure API.
 type CompilationLevel string
 
 const (
@@ -16,6 +19,7 @@ const (
 
 const defaultURL = "http://closure-compiler.appspot.com/compile"
 
+// Defines a set of options for minifying JavaScript code.
 type Closure struct {
 	Level CompilationLevel
 }
@@ -24,6 +28,7 @@ type closureResponse struct {
 	CompiledCode string `json:"compiledCode"`
 }
 
+// Minifies the given JavaScript code.
 func (c *Closure) Transform(content []byte) ([]byte, error) {
 	l := string(c.Level)
 	if l == "" {
