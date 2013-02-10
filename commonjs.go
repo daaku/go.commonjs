@@ -266,7 +266,8 @@ func requireFromModule(m Module) ([]string, error) {
 	return ParseRequire(content)
 }
 
-// Find all required modules.
+// Find all required modules in the given content. This essentially looks for
+// all require() calls with a string literal as the only argument.
 func ParseRequire(content []byte) ([]string, error) {
 	calls := reFunCall.FindAllSubmatch(content, -1)
 	l := make([]string, len(calls))
@@ -279,16 +280,17 @@ func ParseRequire(content []byte) ([]string, error) {
 // An App provides a way to source modules, transform code and serves as a
 // http.Handler.
 type App struct {
-	MountPath    string
-	ContentStore ByteStore
-	Transform    Transform
-	Modules      []Module
-	Providers    []Provider
+	MountPath    string     // URL the http.Handler is serving on
+	ContentStore ByteStore  // ByteStore used for storing Content to be served
+	Transform    Transform  // optional Transform applied to the code
+	Modules      []Module   // optional Modules directly provided by the App
+	Providers    []Provider // optional fallback Providers
 	prelude      []byte
 	packageURLs  map[string]string
 }
 
-// Returns a URL for a given set of modules.
+// Returns a URL for a given set of modules. This caches URLs for a requested
+// set of modules.
 func (a *App) ModulesURL(modules []string) (string, error) {
 	key := strings.Join(modules, "")
 	url := a.packageURLs[key]
@@ -319,6 +321,7 @@ func (a *App) ModulesURL(modules []string) (string, error) {
 	return url, nil
 }
 
+// Retrive a Module by name.
 func (a *App) Module(name string) (m Module, err error) {
 	for _, m = range a.Modules {
 		if m.Name() == name {
@@ -339,6 +342,7 @@ func (a *App) Module(name string) (m Module, err error) {
 	return nil, errModuleNotFound(name)
 }
 
+// Serves HTTP requests for resources.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := path.Base(r.URL.Path)
 	nameLen := len(name)
@@ -363,7 +367,6 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(content)
 }
 
-// Returns the content.
 func (a *App) content(modules []string) ([]byte, error) {
 	set := make(map[string]bool)
 	if err := a.buildDeps(modules, set); err != nil {
