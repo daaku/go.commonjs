@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/daaku/go.commonjs"
-	"github.com/daaku/go.commonjs/closure"
 	"github.com/daaku/go.commonjs/jsh"
 	"github.com/daaku/go.commonjs/jslib"
 	"github.com/daaku/go.h"
@@ -14,7 +13,7 @@ var (
 	jsApp = &commonjs.App{
 		MountPath:    "/r/",
 		ContentStore: commonjs.NewMemoryStore(),
-		Transform:    &closure.Closure{},
+		Transform:    commonjs.JSMin,
 		Providers: []commonjs.Provider{
 			commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
 		},
