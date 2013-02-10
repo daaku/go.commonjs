@@ -11,7 +11,10 @@ import (
 )
 
 var (
-	jsProvider = &commonjs.AppProvider{
+	jsApp = &commonjs.App{
+		MountPath:    "/r/",
+		ContentStore: commonjs.NewMemoryStore(),
+		Transform:    &closure.Closure{},
 		Providers: []commonjs.Provider{
 			commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
 		},
@@ -20,10 +23,6 @@ var (
 			jslib.Bootstrap_2_2_2,
 		},
 	}
-	jsURL          = "/r/"
-	jsContentStore = commonjs.NewMemoryStore()
-	jsURLStore     = commonjs.NewMemoryStore()
-	jsHandler      = commonjs.NewHandler(jsURL, jsContentStore)
 
 	elementID = "cjse-log"
 	document  = h.Compile(&h.Document{
@@ -38,10 +37,7 @@ var (
 				Inner: &h.Frag{
 					&h.H1{ID: elementID},
 					&jsh.AppScripts{
-						Provider:  jsProvider,
-						Handler:   jsHandler,
-						URLStore:  jsURLStore,
-						Transform: &closure.Closure{},
+						App: jsApp,
 						Calls: []jsh.Call{
 							jsh.Call{
 								Module:   "cjse",
@@ -57,7 +53,7 @@ var (
 )
 
 func main() {
-	http.Handle(jsURL, jsHandler)
+	http.Handle(jsApp.MountPath, jsApp)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := h.Write(w, document); err != nil {
 			log.Fatal(err)

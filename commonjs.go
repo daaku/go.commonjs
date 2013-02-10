@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 var (
@@ -56,15 +57,6 @@ type ByteStore interface {
 // example.
 type Transform interface {
 	Transform(content []byte) ([]byte, error)
-}
-
-// A http handler with the ability to add content to be served.
-type Handler interface {
-	http.Handler
-
-	// Make some content available via this handler. It returns the URL for the
-	// content.
-	Add(content []byte) string
 }
 
 type errModuleNotFound string
@@ -198,6 +190,30 @@ func (m *fileModule) Require() ([]string, error) {
 	return requireFromModule(m)
 }
 
+type wrapModule struct {
+	Module
+	prelude  []byte
+	postlude []byte
+}
+
+// Wraps another module and provides the ability to supply a prelude and
+// postlude. This is useful to wrap non CommonJS modules.
+func NewWrapModule(m Module, prelude, postlude []byte) Module {
+	return &wrapModule{
+		Module:   m,
+		prelude:  prelude,
+		postlude: postlude,
+	}
+}
+
+func (w *wrapModule) Content() ([]byte, error) {
+	c, err := w.Module.Content()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
+}
+
 // Provides modules from a directory.
 type dirProvider struct {
 	path string
@@ -260,14 +276,45 @@ func ParseRequire(content []byte) ([]string, error) {
 	return l, nil
 }
 
-// An AppProvider provides zero or more Modules and zero or more fallback
-// Providers. The preference order is Modules then first Providers with module.
-type AppProvider struct {
-	Modules   []Module
-	Providers []Provider
+// An App provides a way to source modules, transform code and serves as a
+// http.Handler.
+type App struct {
+	MountPath    string
+	ContentStore ByteStore
+	Transform    Transform
+	Modules      []Module
+	Providers    []Provider
+	prelude      []byte
+	packageURLs  map[string]string
 }
 
-func (a *AppProvider) Module(name string) (m Module, err error) {
+// Returns a URL for a given set of modules.
+func (a *App) ModulesURL(modules []string) (string, error) {
+	key := strings.Join(modules, "")
+	url := a.packageURLs[key]
+	if url != "" {
+		return url, nil
+	}
+
+	content, err := a.content(modules)
+	if err != nil {
+		return "", err
+	}
+
+	sha := sha256.New()
+	sha.Write(content)
+	hash := fmt.Sprintf("%x", sha.Sum(nil))[:hashLen]
+	err = a.ContentStore.Store(hash, content)
+	if err != nil {
+		return "", err
+	}
+
+	url = path.Join("/", a.MountPath, hash+ext)
+	a.packageURLs[key] = url
+	return url, nil
+}
+
+func (a *App) Module(name string) (m Module, err error) {
 	for _, m = range a.Modules {
 		if m.Name() == name {
 			return m, nil
@@ -287,43 +334,34 @@ func (a *AppProvider) Module(name string) (m Module, err error) {
 	return nil, errModuleNotFound(name)
 }
 
-type wrapModule struct {
-	Module
-	prelude  []byte
-	postlude []byte
-}
-
-// Wraps another module and provides the ability to supply a prelude and
-// postlude. This is useful to wrap non CommonJS modules.
-func NewWrapModule(m Module, prelude, postlude []byte) Module {
-	return &wrapModule{
-		Module:   m,
-		prelude:  prelude,
-		postlude: postlude,
+func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	name := path.Base(r.URL.Path)
+	nameLen := len(name)
+	if nameLen != hashLen+extLen {
+		w.WriteHeader(404)
+		w.Write([]byte("invalid url\n"))
+		return
 	}
-}
-
-func (w *wrapModule) Content() ([]byte, error) {
-	c, err := w.Module.Content()
+	content, err := a.ContentStore.Get(name[:nameLen-extLen])
 	if err != nil {
-		return nil, err
+		w.WriteHeader(500)
+		w.Write([]byte("error retriving package from store"))
+		log.Printf("error retriving package from store: %s", err)
 	}
-	return bytes.Join([][]byte{w.prelude, c, w.postlude}, nil), nil
-}
-
-// A Package delivers a set of requested modules and it's dependencies.
-type Package struct {
-	Provider  Provider // The Provider to pull Modules from.
-	Modules   []string // The Modules to include in the Package.
-	Handler   Handler  // The Handler to store content, generate & serve URLs.
-	Transform Transform
-	url       string
+	if content == nil {
+		w.WriteHeader(404)
+		w.Write([]byte("not found\n"))
+		return
+	}
+	w.Header().Add("Content-Type", "text/javascript")
+	w.WriteHeader(200)
+	w.Write(content)
 }
 
 // Returns the content.
-func (p *Package) Content() ([]byte, error) {
+func (a *App) content(modules []string) ([]byte, error) {
 	set := make(map[string]bool)
-	if err := p.buildDeps(p.Modules, set); err != nil {
+	if err := a.buildDeps(modules, set); err != nil {
 		return nil, err
 	}
 
@@ -333,12 +371,11 @@ func (p *Package) Content() ([]byte, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-
 	out := new(bytes.Buffer)
 
 	var tmp []byte
 	for _, name := range names {
-		m, err := p.Provider.Module(name)
+		m, err := a.Module(name)
 		if err != nil {
 			return nil, err
 		}
@@ -346,8 +383,8 @@ func (p *Package) Content() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.Transform != nil {
-			if content, err = p.Transform.Transform(content); err != nil {
+		if a.Transform != nil {
+			if content, err = a.Transform.Transform(content); err != nil {
 				return nil, err
 			}
 		}
@@ -367,13 +404,13 @@ func (p *Package) Content() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-func (p *Package) buildDeps(require []string, set map[string]bool) error {
+func (a *App) buildDeps(require []string, set map[string]bool) error {
 	for _, name := range require {
 		if set[name] {
 			continue
 		}
 		set[name] = true
-		m, err := p.Provider.Module(name)
+		m, err := a.Module(name)
 		if err != nil {
 			return err
 		}
@@ -381,73 +418,32 @@ func (p *Package) buildDeps(require []string, set map[string]bool) error {
 		if err != nil {
 			return err
 		}
-		p.buildDeps(d, set)
+		a.buildDeps(d, set)
 	}
 	return nil
 }
 
-// Provides a URL for this Package.
-func (p *Package) URL() (string, error) {
-	if p.url == "" {
-		content, err := p.Content()
-		if err != nil {
-			return "", err
+// Provides the Prelude, with Transform applied. The result is cached so you
+// don't have to.
+func (a *App) Prelude() ([]byte, error) {
+	if a.prelude == nil {
+		var err error
+		content := []byte(Prelude())
+		if a.Transform != nil {
+			if content, err = a.Transform.Transform(content); err != nil {
+				return nil, err
+			}
 		}
-		p.url = p.Handler.Add(content)
+		a.prelude = content
 	}
-	return p.url, nil
-}
-
-type storeHandler struct {
-	baseURL string
-	store   ByteStore
-}
-
-// Create a new handler that stores content using content addressable semantics
-// in the given ByteStore.
-func NewHandler(url string, store ByteStore) Handler {
-	return &storeHandler{
-		baseURL: url,
-		store:   store,
-	}
-}
-
-func (h *storeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	name := path.Base(r.URL.Path)
-	nameLen := len(name)
-	if nameLen != hashLen+extLen {
-		w.WriteHeader(404)
-		w.Write([]byte("invalid url\n"))
-		return
-	}
-	content, err := h.store.Get(name[:nameLen-extLen])
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("error retriving package from store"))
-		log.Printf("error retriving package from store: %s", err)
-	}
-	if content == nil {
-		w.WriteHeader(404)
-		w.Write([]byte("not found\n"))
-		return
-	}
-	w.Header().Add("Content-Type", "text/javascript")
-	w.WriteHeader(200)
-	w.Write(content)
-}
-
-func (h *storeHandler) Add(content []byte) string {
-	s := sha256.New()
-	s.Write(content)
-	name := fmt.Sprintf("%x", s.Sum(nil))[:hashLen]
-	h.store.Store(name, content)
-	return path.Join("/", h.baseURL, name+ext)
+	return a.prelude, nil
 }
 
 type memoryStore struct {
 	data map[string][]byte
 }
 
+// Provides a simple in-memory byte store.
 func NewMemoryStore() ByteStore {
 	return &memoryStore{data: make(map[string][]byte)}
 }
