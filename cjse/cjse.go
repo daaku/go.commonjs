@@ -11,22 +11,30 @@ import (
 	"net/http"
 )
 
-var (
-	jsApp = &commonjs.App{
-		MountPath:    "/r/",
-		ContentStore: commonjs.NewMemoryStore(),
-		Transform:    commonjs.JSMin,
-		Providers: []commonjs.Provider{
-			commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
-		},
-		Modules: []commonjs.Module{
-			jslib.JQuery_1_8_2,
-			jslib.Bootstrap_2_2_2,
-		},
-	}
+var jsApp = &commonjs.App{
+	MountPath:    "/r/",
+	ContentStore: commonjs.NewMemoryStore(),
+	Transform:    commonjs.JSMin,
+	Providers: []commonjs.Provider{
+		commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
+	},
+	Modules: []commonjs.Module{
+		jslib.JQuery_1_8_2,
+		jslib.Bootstrap_2_2_2,
+	},
+}
 
-	elementID = "cjse-log"
-	document  = h.Compile(&h.Document{
+func main() {
+	http.Handle(jsApp.MountPath, jsApp)
+	http.HandleFunc("/", handler)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	const elementID = "cjse-log"
+	_, err := h.Write(w, &h.Document{
 		Inner: &h.Frag{
 			&h.Head{
 				Inner: &h.Frag{
@@ -51,16 +59,7 @@ var (
 			},
 		},
 	})
-)
-
-func main() {
-	http.Handle(jsApp.MountPath, jsApp)
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := h.Write(w, document); err != nil {
-			log.Fatal(err)
-		}
-	})
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 }
