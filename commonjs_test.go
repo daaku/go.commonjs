@@ -315,12 +315,48 @@ define("bar","bar");
 	w := httptest.NewRecorder()
 	p.ServeHTTP(w, &http.Request{URL: &url.URL{Path: actualURL}})
 	content := w.Body.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
 	if string(content) != expectedContent {
 		println(string(content))
 		t.Fatal("did not find expected content, instead found content above")
+	}
+}
+
+func TestAppURLLengthError(t *testing.T) {
+	t.Parallel()
+	p := &commonjs.App{
+		MountPath:    "r",
+		Providers:    []commonjs.Provider{commonjs.NewDirProvider("_test")},
+		ContentStore: commonjs.NewMemoryStore(),
+	}
+	w := httptest.NewRecorder()
+	p.ServeHTTP(w, &http.Request{URL: &url.URL{Path: "/foo"}})
+	if w.Code != 404 {
+		t.Fatalf("was expecting a 404, got %s", w.Code)
+	}
+	if bytes.Compare(w.Body.Bytes(), []byte("invalid url\n")) != 0 {
+		println(string(w.Body.Bytes()))
+		t.Fatalf("did not find expected content")
+	}
+}
+
+func TestAppURLPackageMissingError(t *testing.T) {
+	t.Parallel()
+	p := &commonjs.App{
+		MountPath:    "r",
+		Providers:    []commonjs.Provider{commonjs.NewDirProvider("_test")},
+		ContentStore: commonjs.NewMemoryStore(),
+	}
+	w := httptest.NewRecorder()
+	p.ServeHTTP(w, &http.Request{URL: &url.URL{Path: "/r/d613ea9.js"}})
+	if w.Code != 404 {
+		println(string(w.Body.Bytes()))
+		t.Fatalf("was expecting a 500, got %s", w.Code)
+	}
+
+	expected := []byte("not found\n")
+	if bytes.Compare(w.Body.Bytes(), expected) != 0 {
+		println(string(w.Body.Bytes()))
+		t.Fatalf("did not find expected content")
 	}
 }
 

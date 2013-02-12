@@ -354,7 +354,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	content, err := a.ContentStore.Get(name[:nameLen-extLen])
 	if err != nil {
 		w.WriteHeader(500)
-		w.Write([]byte("error retriving package from store"))
+		w.Write([]byte("error retriving package from store\n"))
 		log.Printf("error retriving package from store: %s", err)
 	}
 	if content == nil {
