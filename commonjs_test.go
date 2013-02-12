@@ -276,6 +276,35 @@ func TestDirProviderNotExist(t *testing.T) {
 	}
 }
 
+func TestPackageProvider(t *testing.T) {
+	t.Parallel()
+	const name = "b/baz"
+	p := commonjs.NewPackageProvider("github.com/daaku/go.commonjs/_test")
+	m, err := p.Module(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Name() != name {
+		t.Fatal("did not find expected name")
+	}
+}
+
+func TestPackageProviderNotExistModule(t *testing.T) {
+	t.Parallel()
+	p := commonjs.NewPackageProvider("github.com/daaku/go.commonjs/_test")
+	if _, err := p.Module("xyz"); err == nil {
+		t.Fatal("did not find expected error")
+	}
+}
+
+func TestPackageProviderNotExistPackage(t *testing.T) {
+	t.Parallel()
+	p := commonjs.NewPackageProvider("foo")
+	if _, err := p.Module("xyz"); err == nil {
+		t.Fatal("did not find expected error")
+	}
+}
+
 func TestWrapModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
