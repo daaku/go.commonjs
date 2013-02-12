@@ -362,8 +362,10 @@ func TestAppURLPackageMissingError(t *testing.T) {
 
 type testTransform int
 
+var testTransformContent = []byte("expected")
+
 func (t testTransform) Transform(content []byte) ([]byte, error) {
-	return []byte("expected"), nil
+	return testTransformContent, nil
 }
 
 func TestAppAppliesTransform(t *testing.T) {
@@ -387,6 +389,23 @@ func TestAppAppliesTransform(t *testing.T) {
 	app.ServeHTTP(w, &http.Request{URL: &url.URL{Path: actualURL}})
 	actual := w.Body.Bytes()
 	if bytes.Compare([]byte("define(\"name\",\"expected\");\n"), actual) != 0 {
+		println(string(actual))
+		t.Fatal("failed to find expected content")
+	}
+}
+
+func TestAppAppliesTransformToPrelude(t *testing.T) {
+	t.Parallel()
+	var app = &commonjs.App{
+		MountPath: "r",
+		Transform: testTransform(0),
+	}
+
+	actual, err := app.Prelude()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare([]byte(testTransformContent), actual) != 0 {
 		println(string(actual))
 		t.Fatal("failed to find expected content")
 	}
