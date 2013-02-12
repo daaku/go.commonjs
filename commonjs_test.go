@@ -323,3 +323,35 @@ define("bar","bar");
 		t.Fatal("did not find expected content, instead found content above")
 	}
 }
+
+type testTransform int
+
+func (t testTransform) Transform(content []byte) ([]byte, error) {
+	return []byte("expected"), nil
+}
+
+func TestAppAppliesTransform(t *testing.T) {
+	t.Parallel()
+	var (
+		name   = "name"
+		module = commonjs.NewModule(name, []byte("js"))
+		app    = &commonjs.App{
+			MountPath:    "r",
+			ContentStore: commonjs.NewMemoryStore(),
+			Modules:      []commonjs.Module{module},
+			Transform:    testTransform(0),
+		}
+	)
+
+	actualURL, err := app.ModulesURL([]string{name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	app.ServeHTTP(w, &http.Request{URL: &url.URL{Path: actualURL}})
+	actual := w.Body.Bytes()
+	if bytes.Compare([]byte("define(\"name\",\"expected\");\n"), actual) != 0 {
+		println(string(actual))
+		t.Fatal("failed to find expected content")
+	}
+}
