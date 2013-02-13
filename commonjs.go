@@ -19,12 +19,15 @@ import (
 	"strings"
 )
 
+const (
+	hashLen = 7
+	ext     = ".js"
+	extLen  = len(ext)
+)
+
 var (
 	errModuleMissingName = errors.New("module does not have a name")
 	reFunCall            = regexp.MustCompile(`require\(['"](.+?)['"]\)`)
-	hashLen              = 7
-	ext                  = ".js"
-	extLen               = len(ext)
 )
 
 // A Module provides some JavaScript.
