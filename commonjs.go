@@ -224,6 +224,14 @@ func NewDirProvider(dirname string) Provider {
 	return &dirProvider{path: dirname}
 }
 
+func (d *dirProvider) Module(name string) (Module, error) {
+	filename := filepath.Join(d.path, name+".js")
+	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
+		return nil, errModuleNotFound(name)
+	}
+	return NewFileModule(name, filename), nil
+}
+
 type pkgProvider struct {
 	path     string
 	realPath string
@@ -233,14 +241,6 @@ type pkgProvider struct {
 // useful during development to choose a directory based on the GOPATH.
 func NewPackageProvider(path string) Provider {
 	return &pkgProvider{path: path}
-}
-
-func (d *dirProvider) Module(name string) (Module, error) {
-	filename := filepath.Join(d.path, name+".js")
-	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
-		return nil, errModuleNotFound(name)
-	}
-	return NewFileModule(name, filename), nil
 }
 
 func (d *pkgProvider) Module(name string) (Module, error) {
