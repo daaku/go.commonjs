@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cookieo9/resources-go/v2/resources"
 	"go/build"
 	"io/ioutil"
 	"log"
@@ -259,6 +260,37 @@ func (d *pkgProvider) Module(name string) (Module, error) {
 		return nil, errModuleNotFound(name)
 	}
 	return NewFileModule(name, filename), nil
+}
+
+type zipBundleProvider struct {
+	ZipBundle *resources.ZipBundle
+}
+
+// Provide modules from a ZipBundle. Look at
+// http://godoc.org/github.com/cookieo9/resources-go/v2/resources for further
+// documentation.
+func NewZipBundleProvider(z *resources.ZipBundle) Provider {
+	return &zipBundleProvider{ZipBundle: z}
+}
+
+func (p *zipBundleProvider) Module(name string) (Module, error) {
+	rsrc, err := p.ZipBundle.Find(name + ".js")
+	if err != nil {
+		if err == resources.ErrNotFound {
+			return nil, errModuleNotFound(name)
+		}
+		return nil, err
+	}
+	reader, err := rsrc.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	content, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return NewModule(name, content), nil
 }
 
 func requireFromModule(m Module) ([]string, error) {

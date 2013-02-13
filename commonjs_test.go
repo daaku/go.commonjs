@@ -3,6 +3,7 @@ package commonjs_test
 import (
 	"bytes"
 	"errors"
+	"github.com/cookieo9/resources-go/v2/resources"
 	"github.com/daaku/go.commonjs"
 	"math"
 	"net/http"
@@ -449,5 +450,22 @@ func TestJSMin(t *testing.T) {
 	if bytes.Compare(actual, []byte("\nfunction foo(){return 1;}")) != 0 {
 		println(string(actual))
 		t.Fatal("did not find expected content")
+	}
+}
+
+func TestZipBundleProvider(t *testing.T) {
+	t.Parallel()
+	const name = "b/baz"
+	zipBundle, err := resources.OpenZip("_test/resources.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := commonjs.NewZipBundleProvider(zipBundle)
+	m, err := p.Module(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Name() != name {
+		t.Fatal("did not find expected name")
 	}
 }
