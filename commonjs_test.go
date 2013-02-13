@@ -439,3 +439,15 @@ func TestAppAppliesTransformToPrelude(t *testing.T) {
 		t.Fatal("failed to find expected content")
 	}
 }
+
+func TestJSMin(t *testing.T) {
+	t.Parallel()
+	actual, err := commonjs.JSMin.Transform([]byte("function foo ( ) { return 1 ; }"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(actual, []byte("\nfunction foo(){return 1;}")) != 0 {
+		println(string(actual))
+		t.Fatal("did not find expected content")
+	}
+}
