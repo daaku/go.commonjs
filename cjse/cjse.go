@@ -27,6 +27,7 @@ var jsApp = &commonjs.App{
 func main() {
 	http.Handle(jsApp.MountPath, jsApp)
 	http.HandleFunc("/", handler)
+	log.Println("Listening on 8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
