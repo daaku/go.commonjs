@@ -16,7 +16,7 @@ var jsApp = &commonjs.App{
 	ContentStore: commonjs.NewMemoryStore(),
 	Transform:    commonjs.JSMin,
 	Providers: []commonjs.Provider{
-		commonjs.NewPackageProvider("github.com/daaku/go.commonjs/cjse"),
+		commonjs.NewPackageResourceProvider("github.com/daaku/go.commonjs/cjse"),
 	},
 	Modules: []commonjs.Module{
 		jslib.JQuery_1_8_2,

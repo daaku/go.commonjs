@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -291,6 +292,17 @@ func (p *zipBundleProvider) Module(name string) (Module, error) {
 		return nil, err
 	}
 	return NewModule(name, content), nil
+}
+
+// Create a Provider from a bundled zip if available, falling back to the
+// package sources.
+func NewPackageResourceProvider(path string) Provider {
+	if p, err := exec.LookPath(os.Args[0]); err == nil {
+		if z, err := resources.OpenZip(p); err == nil {
+			return NewZipBundleProvider(z)
+		}
+	}
+	return NewPackageProvider(path)
 }
 
 func requireFromModule(m Module) ([]string, error) {
