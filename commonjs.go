@@ -265,6 +265,7 @@ func (d *pkgProvider) Module(name string) (Module, error) {
 
 type zipBundleProvider struct {
 	ZipBundle *resources.ZipBundle
+	prefix    string
 }
 
 // Provide modules from a ZipBundle. Look at
@@ -275,7 +276,7 @@ func NewZipBundleProvider(z *resources.ZipBundle) Provider {
 }
 
 func (p *zipBundleProvider) Module(name string) (Module, error) {
-	rsrc, err := p.ZipBundle.Find(name + ".js")
+	rsrc, err := p.ZipBundle.Find(filepath.Join(p.prefix, name+".js"))
 	if err != nil {
 		if err == resources.ErrNotFound {
 			return nil, errModuleNotFound(name)
@@ -299,7 +300,10 @@ func (p *zipBundleProvider) Module(name string) (Module, error) {
 func NewPackageResourceProvider(path string) Provider {
 	if p, err := exec.LookPath(os.Args[0]); err == nil {
 		if z, err := resources.OpenZip(p); err == nil {
-			return NewZipBundleProvider(z)
+			return &zipBundleProvider{
+				ZipBundle: z,
+				prefix:    path,
+			}
 		}
 	}
 	return NewPackageProvider(path)
