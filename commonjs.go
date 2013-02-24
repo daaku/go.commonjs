@@ -32,6 +32,7 @@ var (
 
 type FileSystem interface {
 	Open(path string) (io.ReadCloser, error)
+	IsNotExist(err error) bool
 }
 
 // A Module provides some JavaScript.
@@ -251,8 +252,7 @@ func NewFileSystemProvider(z FileSystem) Provider {
 func (p *fsProvider) Module(name string) (Module, error) {
 	reader, err := p.fs.Open(name + ".js")
 	if err != nil {
-		// TODO need IsNotExist in FileSystem?
-		if os.IsNotExist(err) {
+		if p.fs.IsNotExist(err) {
 			return nil, errModuleNotFound(name)
 		}
 		return nil, err
