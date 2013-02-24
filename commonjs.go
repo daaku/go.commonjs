@@ -233,7 +233,7 @@ func NewDirProvider(dirname string) Provider {
 }
 
 func (d *dirProvider) Module(name string) (Module, error) {
-	filename := filepath.Join(d.path, name+".js")
+	filename := filepath.Join(d.path, name+ext)
 	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
 		return nil, errModuleNotFound(name)
 	}
@@ -250,7 +250,7 @@ func NewFileSystemProvider(z FileSystem) Provider {
 }
 
 func (p *fsProvider) Module(name string) (Module, error) {
-	reader, err := p.fs.Open(name + ".js")
+	reader, err := p.fs.Open(name + ext)
 	if err != nil {
 		if p.fs.IsNotExist(err) {
 			return nil, errModuleNotFound(name)
