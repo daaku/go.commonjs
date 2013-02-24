@@ -3,8 +3,8 @@ package commonjs_test
 import (
 	"bytes"
 	"errors"
-	"github.com/cookieo9/resources-go/v2/resources"
 	"github.com/daaku/go.commonjs"
+	"github.com/daaku/go.pkgrsrc/pkgrsrc"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -277,10 +277,11 @@ func TestDirProviderNotExist(t *testing.T) {
 	}
 }
 
-func TestPackageProvider(t *testing.T) {
+func TestFileSystemProvider(t *testing.T) {
 	t.Parallel()
 	const name = "b/baz"
-	p := commonjs.NewPackageProvider("github.com/daaku/go.commonjs/_test")
+	p := commonjs.NewFileSystemProvider(
+		pkgrsrc.New("github.com/daaku/go.commonjs/_test"))
 	m, err := p.Module(name)
 	if err != nil {
 		t.Fatal(err)
@@ -290,17 +291,18 @@ func TestPackageProvider(t *testing.T) {
 	}
 }
 
-func TestPackageProviderNotExistModule(t *testing.T) {
+func TestFileSystemProviderNotExistModule(t *testing.T) {
 	t.Parallel()
-	p := commonjs.NewPackageProvider("github.com/daaku/go.commonjs/_test")
+	p := commonjs.NewFileSystemProvider(
+		pkgrsrc.New("github.com/daaku/go.commonjs/_test"))
 	if _, err := p.Module("xyz"); err == nil {
 		t.Fatal("did not find expected error")
 	}
 }
 
-func TestPackageProviderNotExistPackage(t *testing.T) {
+func TestFileSystemProviderNotExistPackage(t *testing.T) {
 	t.Parallel()
-	p := commonjs.NewPackageProvider("foo")
+	p := commonjs.NewFileSystemProvider(pkgrsrc.New("foo"))
 	if _, err := p.Module("xyz"); err == nil {
 		t.Fatal("did not find expected error")
 	}
@@ -450,22 +452,5 @@ func TestJSMin(t *testing.T) {
 	if bytes.Compare(actual, []byte("\nfunction foo(){return 1;}")) != 0 {
 		println(string(actual))
 		t.Fatal("did not find expected content")
-	}
-}
-
-func TestZipBundleProvider(t *testing.T) {
-	t.Parallel()
-	const name = "b/baz"
-	zipBundle, err := resources.OpenZip("_test/resources.zip")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := commonjs.NewZipBundleProvider(zipBundle)
-	m, err := p.Module(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m.Name() != name {
-		t.Fatal("did not find expected name")
 	}
 }

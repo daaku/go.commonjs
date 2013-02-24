@@ -7,13 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cookieo9/resources-go/v2/resources"
-	"go/build"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -31,6 +29,10 @@ var (
 	errModuleMissingName = errors.New("module does not have a name")
 	reFunCall            = regexp.MustCompile(`require\(['"](.+?)['"]\)`)
 )
+
+type FileSystem interface {
+	Open(path string) (io.ReadCloser, error)
+}
 
 // A Module provides some JavaScript.
 type Module interface {
@@ -237,54 +239,22 @@ func (d *dirProvider) Module(name string) (Module, error) {
 	return NewFileModule(name, filename), nil
 }
 
-type pkgProvider struct {
-	path     string
-	realPath string
+type fsProvider struct {
+	fs FileSystem
 }
 
-// Provide modules from a directory specified as it's import path. This is
-// useful during development to choose a directory based on the GOPATH.
-func NewPackageProvider(path string) Provider {
-	return &pkgProvider{path: path}
+// Provides a FileSystem backed Provider.
+func NewFileSystemProvider(z FileSystem) Provider {
+	return &fsProvider{fs: z}
 }
 
-func (d *pkgProvider) Module(name string) (Module, error) {
-	if d.realPath == "" {
-		pkg, err := build.Import(d.path, "", build.FindOnly)
-		if err != nil {
-			return nil, fmt.Errorf("package provider import path %s not found", d.path)
-		}
-		d.realPath = pkg.Dir
-	}
-	filename := filepath.Join(d.realPath, name+".js")
-	if stat, err := os.Stat(filename); os.IsNotExist(err) || stat.IsDir() {
-		return nil, errModuleNotFound(name)
-	}
-	return NewFileModule(name, filename), nil
-}
-
-type zipBundleProvider struct {
-	ZipBundle *resources.ZipBundle
-	prefix    string
-}
-
-// Provide modules from a ZipBundle. Look at
-// http://godoc.org/github.com/cookieo9/resources-go/v2/resources for further
-// documentation.
-func NewZipBundleProvider(z *resources.ZipBundle) Provider {
-	return &zipBundleProvider{ZipBundle: z}
-}
-
-func (p *zipBundleProvider) Module(name string) (Module, error) {
-	rsrc, err := p.ZipBundle.Find(filepath.Join(p.prefix, name+".js"))
+func (p *fsProvider) Module(name string) (Module, error) {
+	reader, err := p.fs.Open(name + ".js")
 	if err != nil {
-		if err == resources.ErrNotFound {
+		// TODO need IsNotExist in FileSystem?
+		if os.IsNotExist(err) {
 			return nil, errModuleNotFound(name)
 		}
-		return nil, err
-	}
-	reader, err := rsrc.Open()
-	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
@@ -293,20 +263,6 @@ func (p *zipBundleProvider) Module(name string) (Module, error) {
 		return nil, err
 	}
 	return NewModule(name, content), nil
-}
-
-// Create a Provider from a bundled zip if available, falling back to the
-// package sources.
-func NewPackageResourceProvider(path string) Provider {
-	if p, err := exec.LookPath(os.Args[0]); err == nil {
-		if z, err := resources.OpenZip(p); err == nil {
-			return &zipBundleProvider{
-				ZipBundle: z,
-				prefix:    path,
-			}
-		}
-	}
-	return NewPackageProvider(path)
 }
 
 func requireFromModule(m Module) ([]string, error) {

@@ -7,6 +7,7 @@ import (
 	"github.com/daaku/go.commonjs/jsh"
 	"github.com/daaku/go.commonjs/jslib"
 	"github.com/daaku/go.h"
+	"github.com/daaku/go.pkgrsrc/pkgrsrc"
 	"log"
 	"net/http"
 )
@@ -16,7 +17,8 @@ var jsApp = &commonjs.App{
 	ContentStore: commonjs.NewMemoryStore(),
 	Transform:    commonjs.JSMin,
 	Providers: []commonjs.Provider{
-		commonjs.NewPackageResourceProvider("github.com/daaku/go.commonjs/cjse"),
+		commonjs.NewFileSystemProvider(
+			pkgrsrc.New("github.com/daaku/go.commonjs/cjse")),
 	},
 	Modules: []commonjs.Module{
 		jslib.JQuery_1_8_2,
