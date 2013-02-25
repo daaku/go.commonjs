@@ -24,16 +24,16 @@ func TestApp(t *testing.T) {
 	var (
 		name0    = "name0"
 		js0      = []byte("js0")
-		module0a = commonjs.NewModule(name0, js0)
-		module0b = commonjs.NewModule(name0, js0)
+		module0a = commonjs.NewScriptModule(name0, js0)
+		module0b = commonjs.NewScriptModule(name0, js0)
 
 		name1   = "name1"
 		js1     = []byte("js1")
-		module1 = commonjs.NewModule(name1, js1)
+		module1 = commonjs.NewScriptModule(name1, js1)
 
 		name2   = "name2"
 		js2     = []byte("js2")
-		module2 = commonjs.NewModule(name2, js2)
+		module2 = commonjs.NewScriptModule(name2, js2)
 
 		a0 = &commonjs.App{
 			Modules: []commonjs.Module{module0a},
@@ -102,7 +102,7 @@ func TestLiteralModule(t *testing.T) {
 	t.Parallel()
 	const name = "foo"
 	const content = "require('baz')"
-	m := commonjs.NewModule("foo", []byte(content))
+	m := commonjs.NewScriptModule("foo", []byte(content))
 	if m.Name() != name {
 		t.Fatal("did not find expected name")
 	}
@@ -225,7 +225,7 @@ func TestFileBackedModuleInvalid(t *testing.T) {
 
 func TestModuleDeps(t *testing.T) {
 	t.Parallel()
-	m := commonjs.NewModule("bar", []byte(`require('foo')`))
+	m := commonjs.NewScriptModule("bar", []byte(`require('foo')`))
 	require, err := m.Require()
 	if err != nil {
 		t.Fatal(err)
@@ -240,7 +240,7 @@ func TestModuleDeps(t *testing.T) {
 
 func TestModuleDepsMultiple(t *testing.T) {
 	t.Parallel()
-	m := commonjs.NewModule("bar", []byte(`require('foo') require("baz")`))
+	m := commonjs.NewScriptModule("bar", []byte(`require('foo') require("baz")`))
 	require, err := m.Require()
 	if err != nil {
 		t.Fatal(err)
@@ -314,7 +314,7 @@ func TestWrapModule(t *testing.T) {
 	const content = "require('baz')"
 	const prelude = "prelude"
 	const postlude = "postlude"
-	m := commonjs.NewModule("foo", []byte(content))
+	m := commonjs.NewScriptModule("foo", []byte(content))
 	m = commonjs.NewWrapModule(m, []byte(prelude), []byte(postlude))
 	c, err := m.Content()
 	if err != nil {
@@ -396,15 +396,15 @@ type testTransform int
 
 var testTransformContent = []byte("expected")
 
-func (t testTransform) Transform(content []byte) ([]byte, error) {
-	return testTransformContent, nil
+func (t testTransform) Transform(m commonjs.Module) (commonjs.Module, error) {
+	return commonjs.NewScriptModule(m.Name(), testTransformContent), nil
 }
 
 func TestAppAppliesTransform(t *testing.T) {
 	t.Parallel()
 	var (
 		name   = "name"
-		module = commonjs.NewModule(name, []byte("js"))
+		module = commonjs.NewScriptModule(name, []byte("js"))
 		app    = &commonjs.App{
 			MountPath:    "r",
 			ContentStore: commonjs.NewMemoryStore(),
@@ -445,7 +445,12 @@ func TestAppAppliesTransformToPrelude(t *testing.T) {
 
 func TestJSMin(t *testing.T) {
 	t.Parallel()
-	actual, err := commonjs.JSMin.Transform([]byte("function foo ( ) { return 1 ; }"))
+	m, err := commonjs.JSMin.Transform(
+		commonjs.NewScriptModule("foo", []byte("function foo ( ) { return 1 ; }")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := m.Content()
 	if err != nil {
 		t.Fatal(err)
 	}

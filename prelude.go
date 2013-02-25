@@ -1,6 +1,6 @@
 package commonjs
 
-const prelude = `
+var prelude = []byte(`
 (function(exports) {
   var _payloads = {},
       _modules = {},
@@ -74,10 +74,10 @@ const prelude = `
   exports.require = require;
   exports.execute = execute;
 })(this);
-`
+`)
 
 // Returns the CommonJS/npm style prelude that provides define, require &
 // execute functions.
-func Prelude() string {
-	return prelude
+func Prelude() Module {
+	return NewScriptModule("prelude", prelude)
 }

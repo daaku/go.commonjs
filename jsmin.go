@@ -10,8 +10,17 @@ var JSMin Transform = &jsminTransform{}
 
 type jsminTransform struct{}
 
-func (j *jsminTransform) Transform(content []byte) ([]byte, error) {
+func (j *jsminTransform) Transform(m Module) (Module, error) {
+	if m.Ext() != jsExt {
+		return m, nil
+	}
+
+	content, err := m.Content()
+	if err != nil {
+		return nil, err
+	}
+
 	out := new(bytes.Buffer)
 	jsmin.Run(bytes.NewBuffer(content), out)
-	return out.Bytes(), nil
+	return NewScriptModule(m.Name(), out.Bytes()), nil
 }

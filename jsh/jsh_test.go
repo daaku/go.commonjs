@@ -13,7 +13,7 @@ func TestSanity(t *testing.T) {
 	var (
 		functionName = "fname"
 		moduleName   = "mname"
-		module       = commonjs.NewModule(moduleName, []byte("js"))
+		module       = commonjs.NewScriptModule(moduleName, []byte("js"))
 		app          = &commonjs.App{
 			MountPath:    "r",
 			ContentStore: commonjs.NewMemoryStore(),

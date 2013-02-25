@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	jsExt   = "js"
+	cssExt  = "css"
 	hashLen = 7
 	ext     = ".js"
 	extLen  = len(ext)
@@ -45,6 +47,9 @@ type Module interface {
 
 	// Names of modules required by this module.
 	Require() ([]string, error)
+
+	// Extension based on content type, for example "js" or "css".
+	Ext() string
 }
 
 // A Provider provides Modules.
@@ -64,7 +69,7 @@ type ByteStore interface {
 // Package content may be transformed. This is useful for minification for
 // example.
 type Transform interface {
-	Transform(content []byte) ([]byte, error)
+	Transform(module Module) (Module, error)
 }
 
 type errModuleNotFound string
@@ -82,13 +87,15 @@ func IsNotFound(err error) bool {
 type literalModule struct {
 	name    string
 	content []byte
+	ext     string
 }
 
 // Define a module with the given content.
-func NewModule(name string, content []byte) Module {
+func NewScriptModule(name string, content []byte) Module {
 	return &literalModule{
 		name:    name,
 		content: content,
+		ext:     jsExt,
 	}
 }
 
@@ -102,6 +109,10 @@ func (m *literalModule) Content() ([]byte, error) {
 
 func (m *literalModule) Require() ([]string, error) {
 	return requireFromModule(m)
+}
+
+func (m *literalModule) Ext() string {
+	return m.ext
 }
 
 type jsonModule struct {
@@ -135,10 +146,15 @@ func (m *jsonModule) Require() ([]string, error) {
 	return nil, nil
 }
 
+func (m *jsonModule) Ext() string {
+	return jsExt
+}
+
 type urlModule struct {
 	name    string
 	url     string
 	content []byte
+	ext     string
 }
 
 // Define a module where the content is pulled from a URL.
@@ -146,6 +162,7 @@ func NewURLModule(name string, url string) Module {
 	return &urlModule{
 		name: name,
 		url:  url,
+		ext:  filepath.Ext(url),
 	}
 }
 
@@ -172,10 +189,15 @@ func (m *urlModule) Require() ([]string, error) {
 	return requireFromModule(m)
 }
 
+func (m *urlModule) Ext() string {
+	return m.ext
+}
+
 type fileModule struct {
 	name    string
 	path    string
 	content []byte
+	ext     string
 }
 
 // Define a module where the content is pulled from a file.
@@ -183,6 +205,7 @@ func NewFileModule(name string, filename string) Module {
 	return &fileModule{
 		name: name,
 		path: filename,
+		ext:  filepath.Ext(filename),
 	}
 }
 
@@ -196,6 +219,10 @@ func (m *fileModule) Content() ([]byte, error) {
 
 func (m *fileModule) Require() ([]string, error) {
 	return requireFromModule(m)
+}
+
+func (m *fileModule) Ext() string {
+	return m.ext
 }
 
 type wrapModule struct {
@@ -262,7 +289,7 @@ func (p *fsProvider) Module(name string) (Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewModule(name, content), nil
+	return NewScriptModule(name, content), nil
 }
 
 func requireFromModule(m Module) ([]string, error) {
@@ -394,14 +421,14 @@ func (a *App) content(modules []string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+		if a.Transform != nil {
+			if m, err = a.Transform.Transform(m); err != nil {
+				return nil, err
+			}
+		}
 		content, err := m.Content()
 		if err != nil {
 			return nil, err
-		}
-		if a.Transform != nil {
-			if content, err = a.Transform.Transform(content); err != nil {
-				return nil, err
-			}
 		}
 
 		out.WriteString("define(")
@@ -443,13 +470,15 @@ func (a *App) buildDeps(require []string, set map[string]bool) error {
 func (a *App) Prelude() ([]byte, error) {
 	if a.prelude == nil {
 		var err error
-		content := []byte(Prelude())
+		p := Prelude()
 		if a.Transform != nil {
-			if content, err = a.Transform.Transform(content); err != nil {
+			if p, err = a.Transform.Transform(p); err != nil {
 				return nil, err
 			}
 		}
-		a.prelude = content
+		if a.prelude, err = p.Content(); err != nil {
+			return nil, err
+		}
 	}
 	return a.prelude, nil
 }
