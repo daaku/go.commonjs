@@ -245,8 +245,8 @@ type fsProvider struct {
 }
 
 // Provides a FileSystem backed Provider.
-func NewFileSystemProvider(z FileSystem) Provider {
-	return &fsProvider{fs: z}
+func NewFileSystemProvider(fs FileSystem) Provider {
+	return &fsProvider{fs: fs}
 }
 
 func (p *fsProvider) Module(name string) (Module, error) {
