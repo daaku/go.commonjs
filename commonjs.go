@@ -99,6 +99,15 @@ func NewScriptModule(name string, content []byte) Module {
 	}
 }
 
+// Define a module with the given content.
+func NewStyleModule(name string, content []byte) Module {
+	return &literalModule{
+		name:    name,
+		content: content,
+		ext:     cssExt,
+	}
+}
+
 func (m *literalModule) Name() string {
 	return m.name
 }
