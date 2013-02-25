@@ -433,7 +433,7 @@ func TestAppAppliesTransformToPrelude(t *testing.T) {
 		Transform: testTransform(0),
 	}
 
-	actual, err := app.Prelude()
+	actual, err := app.ScriptPrelude()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -476,10 +476,10 @@ func (a *App) buildDeps(require []string, set map[string]bool) error {
 
 // Provides the Prelude, with Transform applied. The result is cached so you
 // don't have to.
-func (a *App) Prelude() ([]byte, error) {
+func (a *App) ScriptPrelude() ([]byte, error) {
 	if a.prelude == nil {
 		var err error
-		p := Prelude()
+		p := ScriptPrelude()
 		if a.Transform != nil {
 			if p, err = a.Transform.Transform(p); err != nil {
 				return nil, err

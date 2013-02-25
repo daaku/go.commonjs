@@ -1,6 +1,6 @@
 package commonjs
 
-var prelude = []byte(`
+var scriptPrelude = []byte(`
 (function(exports) {
   var _payloads = {},
       _modules = {},
@@ -78,6 +78,6 @@ var prelude = []byte(`
 
 // Returns the CommonJS/npm style prelude that provides define, require &
 // execute functions.
-func Prelude() Module {
-	return NewScriptModule("prelude", prelude)
+func ScriptPrelude() Module {
+	return NewScriptModule("prelude", scriptPrelude)
 }

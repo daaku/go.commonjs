@@ -38,7 +38,7 @@ func (a *AppScripts) HTML() (h.HTML, error) {
 		buf.WriteString(");")
 	}
 
-	prelude, err := a.App.Prelude()
+	prelude, err := a.App.ScriptPrelude()
 	if err != nil {
 		return nil, err
 	}
