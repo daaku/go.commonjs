@@ -6,8 +6,8 @@ import (
 	"github.com/daaku/go.commonjs"
 	"github.com/daaku/go.commonjs/jsh"
 	"github.com/daaku/go.commonjs/jslib"
+	"github.com/daaku/go.fs/pkgfs"
 	"github.com/daaku/go.h"
-	"github.com/daaku/go.pkgrsrc/pkgrsrc"
 	"log"
 	"net/http"
 )
@@ -18,7 +18,10 @@ var jsApp = &commonjs.App{
 	Transform:    commonjs.JSMin,
 	Providers: []commonjs.Provider{
 		commonjs.NewFileSystemProvider(
-			pkgrsrc.New("github.com/daaku/go.commonjs/cjse")),
+			pkgfs.New(pkgfs.Config{
+				ImportPath: "github.com/daaku/go.commonjs/cjse",
+				Glob:       "*.js",
+			})),
 	},
 	Modules: []commonjs.Module{
 		jslib.JQuery_1_8_2,

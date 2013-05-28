@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/daaku/go.fs"
 )
 
 const (
@@ -31,11 +32,6 @@ var (
 	errModuleMissingName = errors.New("module does not have a name")
 	reFunCall            = regexp.MustCompile(`require\(['"](.+?)['"]\)`)
 )
-
-type FileSystem interface {
-	Open(path string) (io.ReadCloser, error)
-	IsNotExist(err error) bool
-}
 
 // A Module provides some JavaScript.
 type Module interface {
@@ -277,12 +273,12 @@ func (d *dirProvider) Module(name string) (Module, error) {
 }
 
 type fsProvider struct {
-	fs FileSystem
+	fs fs.System
 }
 
 // Provides a FileSystem backed Provider.
-func NewFileSystemProvider(fs FileSystem) Provider {
-	return &fsProvider{fs: fs}
+func NewFileSystemProvider(s fs.System) Provider {
+	return &fsProvider{fs: s}
 }
 
 func (p *fsProvider) Module(name string) (Module, error) {
